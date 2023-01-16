@@ -7,7 +7,7 @@ from detectron2.data import detection_utils as utils
 from detectron2.data import transforms as T
 
 
-__all__ = ["DatasetMapper"]
+__all__ = ["ObjDetectDatasetMapper"]
 
 
 def build_transform_gen(cfg, is_train):
@@ -24,18 +24,24 @@ def build_transform_gen(cfg, is_train):
         min_size = cfg.INPUT.MIN_SIZE_TEST
         max_size = cfg.INPUT.MAX_SIZE_TEST
         sample_style = "choice"
+
     if sample_style == "range":
-        assert len(min_size) == 2, "more than 2 ({}) min_size(s) are provided for ranges".format(len(min_size))
+        assert (
+            len(min_size) == 2
+        ), "more than 2 ({}) min_size(s) are provided for ranges".format(len(min_size))
 
     logger = logging.getLogger(__name__)
+
     tfm_gens = []
     if is_train:
         tfm_gens.append(T.RandomFlip())
+
     # ResizeShortestEdge
     tfm_gens.append(T.ResizeShortestEdge(min_size, max_size, sample_style))
 
     if is_train:
         logger.info("TransformGens used in training: " + str(tfm_gens))
+
     return tfm_gens
 
 
@@ -63,7 +69,9 @@ class ObjDetectDatasetMapper:
 
         self.tfm_gens = build_transform_gen(cfg, is_train)
         logging.getLogger(__name__).info(
-            "Full TransformGens used in training: {}, crop: {}".format(str(self.tfm_gens), str(self.crop_gen))
+            "Full TransformGens used in training: {}, crop: {}".format(
+                str(self.tfm_gens), str(self.crop_gen)
+            )
         )
 
         self.img_format = cfg.INPUT.FORMAT
@@ -83,7 +91,7 @@ class ObjDetectDatasetMapper:
 
         if self.crop_gen is None:
             image, transforms = T.apply_transform_gens(self.tfm_gens, image)
-        else:
+        else: # this should not be used
             if np.random.rand() > 0.5:
                 image, transforms = T.apply_transform_gens(self.tfm_gens, image)
             else:
@@ -96,8 +104,10 @@ class ObjDetectDatasetMapper:
         # Pytorch's dataloader is efficient on torch.Tensor due to shared-memory,
         # but not efficient on large generic data structures due to the use of pickle & mp.Queue.
         # Therefore it's important to use torch.Tensor.
-        dataset_dict["image"] = torch.as_tensor(np.ascontiguousarray(image.transpose(2, 0, 1)))
-
+        dataset_dict["image"] = torch.as_tensor(
+            np.ascontiguousarray(image.transpose(2, 0, 1))
+        )
+        # TODO: add lingxiao augmentations laterw
         if not self.is_train:
             # USER: Modify this if you want to keep them for some reason.
             dataset_dict.pop("annotations", None)
