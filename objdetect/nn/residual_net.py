@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from detectron2.config import configurable
 
 class BaseProjectionLayer(nn.Module):
     @property
@@ -89,7 +90,9 @@ class ResidualBlock(nn.Module):
         return x
 
 # TODO: change to cfg format
+@NETWORK_REGISTRY.register()
 class ResidualNet(nn.Module):
+    @configurable
     def __init__(self, *,
                  input_dim,
                  feature_dim,
@@ -119,6 +122,15 @@ class ResidualNet(nn.Module):
                 use_difference=use_difference,
                 include_scaling=include_scaling,
             ))
+
+    @classmethod
+    def from_config(cls, cfg):
+        return {
+            "input_dim": cfg.NETWORK.INPUT_DIM,
+            "feature_dim": cfg.NETWORK.FEATURE_DIM,
+            "num_block": cfg.NETWORK.NUM_BLOCK,
+            "hidden_size": cfg.NETWORK.HIDDEN_SIZE,
+        }
 
     def forward(self, F, x):
         '''

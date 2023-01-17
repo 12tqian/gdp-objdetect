@@ -53,6 +53,12 @@ def add_objdetect_config(cfg):
     cfg.MODEL.SWIN.USE_CHECKPOINT = False
     cfg.MODEL.SWIN.OUT_FEATURES = (0, 1, 2, 3)  # modify
 
+    # TODO: Residual Network
+    cfg.NETWORK.INPUT_DIM = 256
+    cfg.NETWORK.FEATURE_DIM = 256
+    cfg.NETWORK.NUM_BLOCK = 3
+    cfg.NETWORK.HIDDEN_SIZE = 256
+
     # Optimizer.
     cfg.SOLVER.OPTIMIZER = "ADAMW"
     cfg.SOLVER.BACKBONE_MULTIPLIER = 1.0
