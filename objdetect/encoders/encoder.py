@@ -5,9 +5,16 @@ from detectron2.model_zoo import get_config
 from detectron2.modeling.poolers import ROIPooler
 from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 from detectron2.structures import Boxes
+from detectron2.config import configurable
 
+# encoder just takes in batched inputs purely
 
-class Encoder(nn.Module):
+class LocalGlobalEncoder(nn.Module):    
+    """
+    Encodes local and global features from ROI and resnet using two separate resent networks. 
+    """
+
+    @configurable
     def __init__(self, cfg):
         super().__init__()
 
@@ -43,7 +50,21 @@ class Encoder(nn.Module):
             torch.nn.Linear(256, 256),
             torch.nn.ReLU(),
             torch.nn.Linear(256, 256))
+
     
+    @classmethod
+    def from_config(cls, cfg):
+        backbone = build_backbone(cfg)
+        return {
+            "backbone": backbone,
+            "proposal_generator": build_proposal_generator(cfg, backbone.output_shape()),
+            "roi_heads": build_roi_heads(cfg, backbone.output_shape()),
+            "input_format": cfg.INPUT.FORMAT,
+            "vis_period": cfg.VIS_PERIOD,
+            "pixel_mean": cfg.MODEL.PIXEL_MEAN,
+            "pixel_std": cfg.MODEL.PIXEL_STD,
+        }
+
     @staticmethod
     def _init_box_pooler(cfg, input_shape):
         in_features = cfg.MODEL.ROI_HEADS.IN_FEATURES
