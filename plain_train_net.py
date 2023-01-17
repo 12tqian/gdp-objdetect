@@ -1,3 +1,24 @@
+#!/usr/bin/env python
+# Copyright (c) Facebook, Inc. and its affiliates.
+"""
+Detectron2 training script with a plain training loop.
+
+This script reads a given config file and runs the training or evaluation.
+It is an entry point that is able to train standard models in detectron2.
+
+In order to let one script support training of many models,
+this script contains logic that are specific to these built-in models and therefore
+may not be suitable for your own project.
+For example, your research project perhaps only needs a single "evaluator".
+
+Therefore, we recommend you to use detectron2 as a library and take
+this file as an example of how to use the library.
+You may want to write your own script with your datasets and other customizations.
+
+Compared to "train_net.py", this script supports fewer default features.
+It also includes fewer abstraction, therefore is easier to add custom logic.
+"""
+
 import logging
 import os
 from collections import OrderedDict
@@ -34,16 +55,9 @@ from detectron2.modeling import build_model
 from detectron2.solver import build_lr_scheduler, build_optimizer
 from detectron2.utils.events import EventStorage
 
-from objdetect import (
-    ObjDetectDatasetMapper,
-    add_proxmodel_config,
-)
-
-from accelerate import Accelerator
-
 logger = logging.getLogger("detectron2")
 
-accelerator = Accelerator()
+from objdetect import ObjDetectDatasetMapper, add_proxmodel_config
 
 
 def get_evaluator(cfg, dataset_name, output_folder=None):
@@ -90,8 +104,9 @@ def get_evaluator(cfg, dataset_name, output_folder=None):
 
 def do_test(cfg, model):
     results = OrderedDict()
+    mapper = ObjDetectDatasetMapper(cfg, is_train=False)
     for dataset_name in cfg.DATASETS.TEST:
-        data_loader = build_detection_test_loader(cfg, dataset_name)
+        data_loader = build_detection_test_loader(cfg, dataset_name, mapper=mapper)
         evaluator = get_evaluator(
             cfg, dataset_name, os.path.join(cfg.OUTPUT_DIR, "inference", dataset_name)
         )
@@ -109,16 +124,10 @@ def do_train(cfg, model, resume=False):
     model.train()
     optimizer = build_optimizer(cfg, model)
     scheduler = build_lr_scheduler(cfg, optimizer)
-    data_loader = build_detection_train_loader(cfg)
-
-    model, optimizer, data_loader, scheduler = accelerator.prepare(
-        model, optimizer, data_loader, scheduler
-    )
 
     checkpointer = DetectionCheckpointer(
         model, cfg.OUTPUT_DIR, optimizer=optimizer, scheduler=scheduler
     )
-
     start_iter = (
         checkpointer.resume_or_load(cfg.MODEL.WEIGHTS, resume=resume).get(
             "iteration", -1
@@ -138,28 +147,30 @@ def do_train(cfg, model, resume=False):
 
     # compared to "train_net.py", we do not support accurate timing and
     # precise BN here, because they are not trivial to implement in a small training loop
+    mapper = ObjDetectDatasetMapper(cfg, is_train=True)
+    data_loader = build_detection_train_loader(cfg, mapper=mapper)
     logger.info("Starting training from iteration {}".format(start_iter))
     with EventStorage(start_iter) as storage:
         for data, iteration in zip(data_loader, range(start_iter, max_iter)):
             storage.iter = iteration
-            
-            loss = model(data)
 
-            for h in len(num_horizon - 1):
+            sum_loss = torch.zeros(1)
+            for h in len(num_horizon):
+                data = model(data)
 
-                pass
+                for item in data:
+                    sum_loss += item["loss"]
 
-            assert torch.isfinite(losses).all(), loss_dict
+                for item in data:
+                    item["proposal_boxes"] = item["pred_boxes"].detach()
 
-            loss_dict_reduced = {
-                k: v.item() for k, v in comm.reduce_dict(loss_dict).items()
-            }
-            losses_reduced = sum(loss for loss in loss_dict_reduced.values())
+            assert torch.isfinite(sum_loss).all()
+
             if comm.is_main_process():
-                storage.put_scalars(total_loss=losses_reduced, **loss_dict_reduced)
+                storage.put_scalars(total_loss=sum_loss)
 
             optimizer.zero_grad()
-            losses.backward()
+            sum_loss.backward()
             optimizer.step()
             storage.put_scalar(
                 "lr", optimizer.param_groups[0]["lr"], smoothing_hint=False
@@ -203,7 +214,6 @@ def main(args):
 
     model = build_model(cfg)
     logger.info("Model:\n{}".format(model))
-
     if args.eval_only:
         DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
             cfg.MODEL.WEIGHTS, resume=args.resume
