@@ -1,4 +1,4 @@
-from .nn.residual_net import ResidualNet
+from .networks.residual_net import ResidualNet
 import torch
 from torch import nn
 
