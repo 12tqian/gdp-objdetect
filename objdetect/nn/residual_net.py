@@ -2,6 +2,10 @@ import torch
 from torch import nn
 from detectron2.config import configurable
 
+from gdp-objdetect.objdetect.registry import (
+    NETWORK_REGISTRY,
+)
+
 class BaseProjectionLayer(nn.Module):
     @property
     def proj_dim(self):

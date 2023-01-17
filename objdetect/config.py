@@ -59,6 +59,9 @@ def add_objdetect_config(cfg):
     cfg.NETWORK.NUM_BLOCK = 3
     cfg.NETWORK.HIDDEN_SIZE = 256
 
+    # TODO: Proposal Generator
+    cfg.PROPOSAL_GENERATOR.NAME = "RandomBoxes"
+
     # Optimizer.
     cfg.SOLVER.OPTIMIZER = "ADAMW"
     cfg.SOLVER.BACKBONE_MULTIPLIER = 1.0
