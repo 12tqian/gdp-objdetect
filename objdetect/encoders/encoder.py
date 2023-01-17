@@ -1,82 +1,96 @@
 import torch
+from typing import List, Dict, Tuple
 
 import torch.nn as nn
+from detectron2.layers import ShapeSpec
 from detectron2.model_zoo import get_config
 from detectron2.modeling.poolers import ROIPooler
-from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
-from detectron2.structures import Boxes
+from detectron2.modeling import build_resnet_backbone
+from detectron2.modeling.backbone.fpn import build_resnet_fpn_backbone
+from detectron2.modeling.backbone import Backbone
+from detectron2.structures import Boxes, ImageList
 from detectron2.config import configurable
 
 # encoder just takes in batched inputs purely
 
-class LocalGlobalEncoder(nn.Module):    
+
+class LocalGlobalEncoder(nn.Module):
     """
-    Encodes local and global features from ROI and resnet using two separate resent networks. 
+    Encodes local and global features from ROI and resnet using two separate resent networks.
     """
 
     @configurable
-    def __init__(self, cfg):
+    def __init__(
+        self,
+        *,
+        box_pooler: ROIPooler,
+        global_backbone: Backbone,
+        local_backbone: Backbone,
+        encoder_dim: int,
+        fpn_in_features: List,
+        pooler_resolution: int,
+        pixel_mean: Tuple[float],
+        pixel_std: Tuple[float]
+    ):
         super().__init__()
+        self.local_backbone = local_backbone
+        self.global_backbone = global_backbone
+        self.encoder_dim = encoder_dim
+        self.fpn_in_features = fpn_in_features
+        self.box_pooler = box_pooler
+        self.pooler_resolution = pooler_resolution
 
-        cfg = get_config(cfg_path)
+        self.size_divisibility = local_backbone.size_divisibility
+        assert local_backbone.size_divisibility == global_backbone.size_divisibility
+        assert "res5" in global_backbone.output_shape()
 
-        self.backbone = build_backbone(cfg)
-        self.backbone.train(True)
-
-        self.size_divisibility = self.backbone.size_divisibility
-
-        pixel_mean = torch.Tensor(cfg.MODEL.PIXEL_MEAN).to(self.device).view(3, 1, 1)
-        pixel_std = torch.Tensor(cfg.MODEL.PIXEL_STD).to(self.device).view(3, 1, 1)
+        pixel_mean = torch.Tensor(pixel_mean).to(self.device).view(3, 1, 1)
+        pixel_std = torch.Tensor(pixel_std).to(self.device).view(3, 1, 1)
         self.normalizer = lambda x: (x - pixel_mean) / pixel_std
 
-        self.box_pooler = self._init_box_pooler(cfg, roi_input_shape)
+        # input is 256x7x7, output is 256x1x1
+        self.local_line_layers = nn.Sequential(
+            nn.Conv2d(256, self.encoder_dim, 3), nn.AdaptiveAvgPool2d((1, 1))
+        )
 
-        self.pooler = torch.nn.AdaptiveAvgPool2d((1, 1))
+        self.global_line_layers = nn.Sequential(
+            nn.Conv2d(2048, self.encoder_dim, 1), nn.AdaptiveAvgPool2d((1, 1))
+        )
 
-        self.hidden_dim = 256
-        self.latent_ffn = torch.nn.Sequential(
-            torch.nn.Linear(256, 256),
-            torch.nn.ReLU(),
-            torch.nn.Linear(256, 256),
-            torch.nn.ReLU(),
-            torch.nn.Linear(256, self.hidden_dim))
-        self.pooling = torch.nn.AdaptiveAvgPool2d((1, 1))
-        self.latent_ffn2 = torch.nn.Sequential(
-            torch.nn.Linear(256 * pooler_resolution *
-                            pooler_resolution + 256, 256),
-            torch.nn.ReLU(),
-            torch.nn.Linear(256, 256),
-            torch.nn.ReLU(),
-            torch.nn.Linear(256, 256),
-            torch.nn.ReLU(),
-            torch.nn.Linear(256, 256))
+        self.ffn = torch.nn.Sequential(
+            nn.Linear(self.encoder_dim * 2, 256),
+            nn.ReLU(),
+            nn.Linear(256, 256),
+            nn.ReLU(),
+            nn.Linear(256, self.encoder_dim),
+        )
 
-    
     @classmethod
     def from_config(cls, cfg):
-        backbone = build_backbone(cfg)
+        input_shape = ShapeSpec(channels=len(cfg.MODEL.PIXEL_MEAN))
+        global_backbone = build_resnet_backbone(cfg, input_shape)
+        local_backbone = build_resnet_fpn_backbone(cfg, input_shape)
+        box_pooler = cls._init_box_pooler(cfg, local_backbone.output_shape())
         return {
-            "backbone": backbone,
-            "proposal_generator": build_proposal_generator(cfg, backbone.output_shape()),
-            "roi_heads": build_roi_heads(cfg, backbone.output_shape()),
-            "input_format": cfg.INPUT.FORMAT,
-            "vis_period": cfg.VIS_PERIOD,
+            "box_pooler": box_pooler,
+            "global_backbone": global_backbone,
+            "local_backbone": local_backbone,
+            "fpn_in_features": cfg.MODEL.ROI_HEADS.IN_FEATURES,
+            "pooler_resolution": cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION,
+            "encoder_dim": cfg.MODEL.ENCODER.DIMENSION,
             "pixel_mean": cfg.MODEL.PIXEL_MEAN,
             "pixel_std": cfg.MODEL.PIXEL_STD,
         }
 
-    @staticmethod
-    def _init_box_pooler(cfg, input_shape):
+    @classmethod
+    def _init_box_pooler(cls, cfg, input_shape):
         in_features = cfg.MODEL.ROI_HEADS.IN_FEATURES
         pooler_resolution = cfg.MODEL.ROI_BOX_HEAD.POOLER_RESOLUTION
         pooler_scales = tuple(1.0 / input_shape[k].stride for k in in_features)
         sampling_ratio = cfg.MODEL.ROI_BOX_HEAD.POOLER_SAMPLING_RATIO
         pooler_type = cfg.MODEL.ROI_BOX_HEAD.POOLER_TYPE
 
-        # If StandardROIHeads is applied on multiple feature maps (as in FPN),
-        # then we share the same predictors and therefore the channel counts must be the same
         in_channels = [input_shape[f].channels for f in in_features]
-        # Check all channel counts are equal
         assert len(set(in_channels)) == 1, in_channels
 
         box_pooler = ROIPooler(
@@ -87,22 +101,31 @@ class LocalGlobalEncoder(nn.Module):
         )
         return box_pooler
 
-    def forward(self, images, boxes): 
+    def forward(self, images, boxes):
         N, B = boxes.shape[:2]
+
+        images = self.preprocess_image(images)
+        fpn_features_dict = self.local_backbone(images.tensor)
+        global_features = self.global_backbone(images.tensor)["res5"]
 
         proposal_boxes = []
 
         for b in range(N):
             proposal_boxes.append(Boxes(boxes[b]))
-        
-        src = self.backbone(images)
 
-        features = []  
-        for f in self.in_features:
-            feature = src[f]
-            features.append(feature)
+        fpn_features = []
+        for f in self.fpn_in_features:
+            feature = fpn_features_dict[f]
+            fpn_features.append(feature)
 
-        roi_features = self.box_pooler(features, proposal_boxes)
+        roi_features = self.box_pooler(fpn_features, proposal_boxes)
+
+        roi_features = self.local_line_layers(roi_features).view(N, B, -1)
+        global_features = self.global_line_layers(global_features).view(N, B, -1)
+
+        encoding = self.ffn(torch.cat((roi_features, global_features), dim=2))
+
+        return encoding
 
     def preprocess_image(self, batched_inputs):
         """
@@ -110,11 +133,4 @@ class LocalGlobalEncoder(nn.Module):
         """
         images = [self.normalizer(x["image"].to(self.device)) for x in batched_inputs]
         images = ImageList.from_tensors(images, self.size_divisibility)
-
-        images_whwh = list()
-        for bi in batched_inputs:
-            h, w = bi["image"].shape[-2:]
-            images_whwh.append(torch.tensor([w, h, w, h], dtype=torch.float32, device=self.device))
-        images_whwh = torch.stack(images_whwh)
-
-        return images, images_whwh
+        return images
