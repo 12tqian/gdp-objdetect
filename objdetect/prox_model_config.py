@@ -7,7 +7,8 @@ def add_proxmodel_config(cfg):
     """
     cfg.MODEL = CN()
 
-    cfg.MODEL.PROPOSAL_GENERATOR = CN()
+    cfg.MODEL.TRAIN_PROPOSAL_GENERATOR = CN()
+    cfg.MODEL.INFERENCE_PROPOSAL_GENERATOR = CN()
     cfg.MODEL.ENCODER = CN()
     cfg.MODEL.NETWORK = CN()
     cfg.MODEL.TRANSPORT_LOSS = CN()
