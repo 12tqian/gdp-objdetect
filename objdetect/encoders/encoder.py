@@ -44,8 +44,8 @@ class LocalGlobalEncoder(nn.Module):
         assert local_backbone.size_divisibility == global_backbone.size_divisibility
         assert "res5" in global_backbone.output_shape()
 
-        pixel_mean = torch.Tensor(pixel_mean).to(self.device).view(3, 1, 1)
-        pixel_std = torch.Tensor(pixel_std).to(self.device).view(3, 1, 1)
+        pixel_mean = torch.Tensor(pixel_mean).view(3, 1, 1)
+        pixel_std = torch.Tensor(pixel_std).view(3, 1, 1)
         self.normalizer = lambda x: (x - pixel_mean) / pixel_std
 
         # input is 256x7x7, output is 256x1x1
@@ -101,27 +101,29 @@ class LocalGlobalEncoder(nn.Module):
         )
         return box_pooler
 
-    def forward(self, images, boxes):
-        N, B = boxes.shape[:2]
+    def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
+        images = self.preprocess_image(batched_inputs)
 
-        images = self.preprocess_image(images)
+        proposal_boxes = [Boxes(x["proposal_boxes"]) for x in batched_inputs]
+
+        # following line of code assumes that each image in the batch has the same number of proposal_boxees
+        batch_size = len(batched_inputs)
+        num_boxes_per_batch = len(batched_inputs[0])
+
         fpn_features_dict = self.local_backbone(images.tensor)
         global_features = self.global_backbone(images.tensor)["res5"]
 
-        proposal_boxes = []
-
-        for b in range(N):
-            proposal_boxes.append(Boxes(boxes[b]))
-
-        fpn_features = []
-        for f in self.fpn_in_features:
-            feature = fpn_features_dict[f]
-            fpn_features.append(feature)
-
+        fpn_features = [
+            fpn_features_dict[feature_name] for feature_name in self.fpn_in_features
+        ]
         roi_features = self.box_pooler(fpn_features, proposal_boxes)
 
-        roi_features = self.local_line_layers(roi_features).view(N, B, -1)
-        global_features = self.global_line_layers(global_features).view(N, B, -1)
+        roi_features = self.local_line_layers(roi_features).view(
+            batch_size, num_boxes_per_batch, -1
+        )
+        global_features = self.global_line_layers(global_features).view(
+            batch_size, num_boxes_per_batch, -1
+        )
 
         encoding = self.ffn(torch.cat((roi_features, global_features), dim=2))
 
@@ -131,6 +133,6 @@ class LocalGlobalEncoder(nn.Module):
         """
         Normalize, pad and batch the input images.
         """
-        images = [self.normalizer(x["image"].to(self.device)) for x in batched_inputs]
+        images = [self.normalizer(x["image"]) for x in batched_inputs]
         images = ImageList.from_tensors(images, self.size_divisibility)
         return images
