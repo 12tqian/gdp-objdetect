@@ -1,6 +1,4 @@
 import os
-import itertools
-import weakref
 from typing import Any, Dict, List, Set
 import logging
 
@@ -28,18 +26,8 @@ from detectron2.modeling import build_model
 
 from objdetect import (
     ObjDetectDatasetMapper,
-    add_objdetect_config,
-    ObjDetectWithTTA,
+    add_proxmodel_config,
 )
-from .objdetect.util.model_ema import (
-    add_model_ema_configs,
-    may_build_model_ema,
-    may_get_ema_checkpointer,
-    EMAHook,
-    apply_model_ema_and_restore,
-    EMADetectionCheckpointer,
-)
-
 
 class Trainer(DefaultTrainer):
     """Extension of the Trainer class adapted to DiffusionDet."""
@@ -140,12 +128,7 @@ class Trainer(DefaultTrainer):
      
 def setup(args):
     cfg = get_cfg()
-
-    if args.eval_only:
-        pass
-
-    add_objdetect_config(cfg)
-    add_model_ema_configs(cfg)
+    add_proxmodel_config(cfg)
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
     cfg.freeze()

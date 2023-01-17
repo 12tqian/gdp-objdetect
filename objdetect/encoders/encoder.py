@@ -3,7 +3,7 @@ from typing import List, Dict, Tuple
 
 import torch.nn as nn
 from detectron2.layers import ShapeSpec
-from detectron2.model_zoo import get_config
+from detectron2.model_zoo import get/._config
 from detectron2.modeling.poolers import ROIPooler
 from detectron2.modeling import build_resnet_backbone
 from detectron2.modeling.backbone.fpn import build_resnet_fpn_backbone
