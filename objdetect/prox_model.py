@@ -37,7 +37,8 @@ class ProxModel(nn.Module):
     def __init__(
         self,
         *,
-        proposal_generator: Optional[nn.Module],
+        train_proposal_generator: Optional[nn.Module],
+        inference_proposal_generator: Optional[nn.Module],
         encoder: Backbone,
         network: nn.Module,
         transport_loss: nn.Module,
@@ -57,7 +58,8 @@ class ProxModel(nn.Module):
             vis_period: the period to run visualization. Set to 0 to disable.
         """
         super().__init__()
-        self.proposal_generator = proposal_generator
+        self.train_proposal_generator = train_proposal_generator
+        self.inference_proposal_generator = inference_proposal_generator
         self.encoder = encoder
         self.network = network
         self.transport_loss = transport_loss
@@ -80,10 +82,16 @@ class ProxModel(nn.Module):
 
     @classmethod
     def from_config(cls, cfg):
-        proposal_generator = (
-            PROPOSAL_REGISTRY.get(cfg.MODEL.PROPOSAL_GENERATOR.NAME)(cfg)
-            if cfg.PROPOSAL_GENERATOR.NAME is not None
+        train_proposal_generator = (
+            PROPOSAL_REGISTRY.get(cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.NAME)(cfg)
+            if cfg.TRAIN_PROPOSAL_GENERATOR.NAME is not None
             else None
+        )
+
+        inference_proposal_generator = (
+            PROPOSAL_REGISTRY.get(cfg.MODEL.INFERENCE_PROPOSAL_GENERATOR.NAME)(cfg)
+            if cfg.INFERENCE_PROPOSAL_GENERATOR.NAME is not None
+            else train_proposal_generator
         )
 
         encoder = ENCODER_REGISTRY.get(cfg.MODEL.ENCODER.NAME)(
@@ -102,7 +110,8 @@ class ProxModel(nn.Module):
         )
 
         return {
-            "proposal_generator": proposal_generator,
+            "train_proposal_generator": train_proposal_generator,
+            "inference_proposal_generator": inference_proposal_generator,
             "encoder": encoder,
             "network": network,
             "transport_loss": transport_loss,
@@ -119,6 +128,104 @@ class ProxModel(nn.Module):
 
     def _move_to_current_device(self, x):
         return move_device_like(x, self.pixel_mean)
+
+    def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
+        """
+        Args:
+            batched_inputs: a list, batched outputs of :class:`DatasetMapper` .
+                Each item in the list contains the inputs for one image.
+                For now, each item in the list is a dict that contains:
+                * image: Tensor, image in (C, H, W) format.
+                * instances (optional): groundtruth :class:`Instances`
+                * proposal_boxes (optional): :class:`Instances`, precomputed proposal_boxes.
+                Other information that's included in the original dicts, such as:
+                * "height", "width" (int): the output resolution of the model, used in inference.
+                  See :meth:`postprocess` for details.
+        Returns:
+            list[dict]:
+                Each dict is the output for one input image.
+                The dict contains one key "instances" whose value is a :class:`Instances`.
+                The :class:`Instances` object has the following keys:
+                "pred_boxes", "pred_classes", "scores", "pred_masks", "pred_keypoints"
+        """
+
+        if not self.training:
+            return self.inference(batched_inputs)
+
+        if "proposal_boxes" not in batched_inputs[0]:
+            assert self.train_proposal_generator is not None
+            batched_inputs = self.train_proposal_generator(batched_inputs)
+
+        features = self.encoder(batched_inputs)
+        results = self.network(features)
+
+        proposal_boxes = [x["proposal_boxes"] for x in batched_inputs]
+
+        # visualization requires lists, not tensors
+        if self.vis_period > 0:
+            storage = get_event_storage()
+            if storage.iter % self.vis_period == 0:
+                self.visualize_training(batched_inputs, proposal_boxes)
+
+        proposal_boxes = torch.stack(proposal_boxes)
+        gt_boxes = torch.stack([x["instances"] for x in batched_inputs])
+
+        losses = self.detection_loss(results, gt_boxes) + self.transport_loss(
+            results, proposal_boxes
+        )
+
+        return losses
+
+    def inference(
+        self,
+        batched_inputs: List[Dict[str, torch.Tensor]],
+        repetitions=1,
+        do_postprocess: bool = True,
+    ):
+        """
+        Run inference on the given inputs.
+        Args:
+            batched_inputs (list[dict]): same as in :meth:`forward` except must contain proposal_boxes already
+            do_postprocess (bool): whether to apply post-processing on the outputs.
+        Returns:
+            When do_postprocess=True, same as in :meth:`forward`.
+            Otherwise, a list[Instances] containing raw network outputs.
+        """
+        assert not self.training
+
+        if "proposal_boxes" not in batched_inputs[0]:
+            assert self.inference_proposal_generator is not None
+            batched_inputs = self.inference_proposal_generator(batched_inputs)
+
+        for _ in range(repetitions):
+            features = self.encoder(batched_inputs)
+            results = self.network(features)
+
+            for input in batched_inputs:
+                input["proposal_boxes"] = input["pred_boxes"]
+
+        if do_postprocess:
+            assert (
+                not torch.jit.is_scripting()
+            ), "Scripting is not supported for postprocess."
+            return ProxModel._postprocess(results, batched_inputs)
+
+        return results
+
+    @staticmethod
+    def _postprocess(instances, batched_inputs: List[Dict[str, torch.Tensor]]):
+        """
+        Rescale the output instances to the target size.
+        """
+        # note: private function; subject to changes
+        processed_results = []
+        for results_per_image, input_per_image in zip(instances, batched_inputs):
+            image_size = input_per_image["image"].shape[-2:]
+            height = input_per_image.get("height", image_size[0])
+            width = input_per_image.get("width", image_size[1])
+            r = detector_postprocess(results_per_image, height, width)
+            processed_results.append({"instances": r})
+        return processed_results
 
     def visualize_training(self, batched_inputs, proposals):
         """
@@ -153,97 +260,3 @@ class ProxModel(nn.Module):
             vis_name = "Left: GT bounding boxes;  Right: Predicted proposals"
             storage.put_image(vis_name, vis_img)
             break  # only visualize one image in a batch
-
-    def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
-        """
-        Args:
-            batched_inputs: a list, batched outputs of :class:`DatasetMapper` .
-                Each item in the list contains the inputs for one image.
-                For now, each item in the list is a dict that contains:
-                * image: Tensor, image in (C, H, W) format.
-                * instances (optional): groundtruth :class:`Instances`
-                * proposal_boxes (optional): :class:`Instances`, precomputed proposal_boxes.
-                Other information that's included in the original dicts, such as:
-                * "height", "width" (int): the output resolution of the model, used in inference.
-                  See :meth:`postprocess` for details.
-        Returns:
-            list[dict]:
-                Each dict is the output for one input image.
-                The dict contains one key "instances" whose value is a :class:`Instances`.
-                The :class:`Instances` object has the following keys:
-                "pred_boxes", "pred_classes", "scores", "pred_masks", "pred_keypoints"
-        """
-        if "proposal_boxes" not in batched_inputs[0]:
-            assert self.proposal_generator is not None
-            batched_inputs = self.proposal_generator(batched_inputs)
-
-        if not self.training:
-            return self.inference(batched_inputs)
-
-        features = self.encoder(batched_inputs)
-        results = self.network(features)
-
-        proposal_boxes = [x["proposal_boxes"].to(self.device) for x in batched_inputs]
-
-        # visualization requires lists, not tensors
-        if self.vis_period > 0:
-            storage = get_event_storage()
-            if storage.iter % self.vis_period == 0:
-                self.visualize_training(batched_inputs, proposal_boxes)
-
-        proposal_boxes = torch.stack(proposal_boxes)
-        gt_boxes = torch.stack([x["instances"].to(self.device) for x in batched_inputs])
-
-        losses = self.detection_loss(results, gt_boxes) + self.transport_loss(
-            results, proposal_boxes
-        )
-
-        return losses
-
-    def inference(
-        self,
-        batched_inputs: List[Dict[str, torch.Tensor]],
-        repetitions=1,
-        do_postprocess: bool = True,
-    ):
-        """
-        Run inference on the given inputs. Note: For internal use only! External users should call forward.
-        Args:
-            batched_inputs (list[dict]): same as in :meth:`forward` except must contain proposal_boxes already
-            do_postprocess (bool): whether to apply post-processing on the outputs.
-        Returns:
-            When do_postprocess=True, same as in :meth:`forward`.
-            Otherwise, a list[Instances] containing raw network outputs.
-        """
-        assert not self.training
-        assert "proposal_boxes" in batched_inputs[0]
-
-        for _ in range(repetitions):
-            features = self.encoder(batched_inputs)
-            results = self.network(features)
-
-            for input in batched_inputs:
-                input["proposal_boxes"] = input["pred_boxes"]
-
-        if do_postprocess:
-            assert (
-                not torch.jit.is_scripting()
-            ), "Scripting is not supported for postprocess."
-            return ProxModel._postprocess(results, batched_inputs)
-
-        return results
-
-    @staticmethod
-    def _postprocess(instances, batched_inputs: List[Dict[str, torch.Tensor]]):
-        """
-        Rescale the output instances to the target size.
-        """
-        # note: private function; subject to changes
-        processed_results = []
-        for results_per_image, input_per_image in zip(instances, batched_inputs):
-            image_size = input_per_image["image"].shape[-2:]
-            height = input_per_image.get("height", image_size[0])
-            width = input_per_image.get("width", image_size[1])
-            r = detector_postprocess(results_per_image, height, width)
-            processed_results.append({"instances": r})
-        return processed_results
