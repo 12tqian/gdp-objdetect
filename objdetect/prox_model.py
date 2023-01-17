@@ -159,7 +159,7 @@ class ProxModel(nn.Module):
         features = self.encoder(batched_inputs)
         results = self.network(features)
 
-        proposal_boxes = [x["proposal_boxes"].to(self.device) for x in batched_inputs]
+        proposal_boxes = [x["proposal_boxes"] for x in batched_inputs]
 
         # visualization requires lists, not tensors
         if self.vis_period > 0:
@@ -168,7 +168,7 @@ class ProxModel(nn.Module):
                 self.visualize_training(batched_inputs, proposal_boxes)
 
         proposal_boxes = torch.stack(proposal_boxes)
-        gt_boxes = torch.stack([x["instances"].to(self.device) for x in batched_inputs])
+        gt_boxes = torch.stack([x["instances"] for x in batched_inputs])
 
         losses = self.detection_loss(results, gt_boxes) + self.transport_loss(
             results, proposal_boxes
