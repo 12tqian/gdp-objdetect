@@ -1,0 +1,18 @@
+# This file only contains configs for the model.
+
+
+MODEL:
+  META_ARCHITECTURE: "Prox"
+  WEIGHTS: ""
+  PIXEL_MEAN: [123.675, 116.280, 103.530]
+  PIXEL_STD: [58.395, 57.120, 57.375]
+  PROPOSAL_GENERATOR:
+    NAME: "ProposalGeneratorPLACEHOLDER"
+  ENCODER:
+    NAME: "EncoderPLACEHOLDER"
+  NETWORK:
+    NAME: "NetworkPLACEHOLDER"
+  TRANSPORT_LOSS:
+    NAME: "TransportLossPLACHOLDER"
+  DETECTION_LOSS:
+    Name: "DetectionLossPLACEHOLDER"
