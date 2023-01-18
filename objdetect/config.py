@@ -1,7 +1,7 @@
 from detectron2.config import CfgNode as CN
 
 
-def add_objdetect_config(cfg):
+def add_proxmodel_cfg(cfg):
     """
     Add config for ObjDetect
     """
@@ -66,3 +66,11 @@ def add_objdetect_config(cfg):
     # Optimizer.
     cfg.SOLVER.OPTIMIZER = "ADAMW"
     cfg.SOLVER.BACKBONE_MULTIPLIER = 1.0
+
+    cfg.MODEL.TRAIN_PROPOSAL_GENERATOR = CN()
+    cfg.MODEL.INFERENCE_PROPOSAL_GENERATOR = CN()
+    cfg.MODEL.ENCODER = CN()
+    cfg.MODEL.NETWORK = CN()
+    cfg.MODEL.TRANSPORT_LOSS = CN()
+    cfg.MODEL.DETECTION_LOSS = CN()
+    

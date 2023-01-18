@@ -45,7 +45,7 @@ def build_transform_gen(cfg, is_train):
     return tfm_gens
 
 
-class ObjDetectDatasetMapper:
+class ProxModelDatasetMapper:
     """
     A callable which takes a dataset dict in Detectron2 Dataset format,
     and map it into a format used by DiffusionDet.

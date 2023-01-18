@@ -57,7 +57,7 @@ from detectron2.utils.events import EventStorage
 
 logger = logging.getLogger("detectron2")
 
-from objdetect import ObjDetectDatasetMapper, add_proxmodel_config
+from objdetect import ProxModelDatasetMapper, add_proxmodel_cfg
 
 
 def get_evaluator(cfg, dataset_name, output_folder=None):
@@ -104,7 +104,7 @@ def get_evaluator(cfg, dataset_name, output_folder=None):
 
 def do_test(cfg, model):
     results = OrderedDict()
-    mapper = ObjDetectDatasetMapper(cfg, is_train=False)
+    mapper = ProxModelDatasetMapper(cfg, is_train=False)
     for dataset_name in cfg.DATASETS.TEST:
         data_loader = build_detection_test_loader(cfg, dataset_name, mapper=mapper)
         evaluator = get_evaluator(
@@ -199,7 +199,7 @@ def setup(args):
     Create configs and perform basic setups.
     """
     cfg = get_cfg()
-    add_proxmodel_config(cfg)
+    add_proxmodel_cfg(cfg)
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
     cfg.freeze()
