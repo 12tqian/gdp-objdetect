@@ -5,6 +5,7 @@ from detectron2.config import configurable
 import torch.nn as nn
 from .registry import PROPOSAL_REGISTRY
 
+
 @PROPOSAL_REGISTRY.register()
 class RandomBoxes(nn.Module):
     @configurable
@@ -14,9 +15,7 @@ class RandomBoxes(nn.Module):
 
     @classmethod
     def from_config(cls, cfg):
-        return {
-            "num_proposal_boxes": cfg.PROPOSAL_GENERATOR.NUM_PROPOSALS
-        }
+        return {"num_proposal_boxes": cfg.PROPOSAL_GENERATOR.NUM_PROPOSALS}
 
     def forward(self, batched_inputs):
         """
