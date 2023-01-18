@@ -14,8 +14,12 @@ class RandomBoxes(nn.Module):
         self.num_proposal_boxes = num_proposal_boxes
 
     @classmethod
-    def from_config(cls, cfg):
-        return {"num_proposal_boxes": cfg.PROPOSAL_GENERATOR.NUM_PROPOSALS}
+    def from_config(cls, cfg, is_inf_proposal=False):
+        return {
+            "num_proposal_boxes": cfg.TRAIN_PROPOSAL_GENERATOR.NUM_PROPOSALS
+            if not is_inf_proposal
+            else cfg.INFERENCE_PROPOSAL_GENERATOR.NUM_PROPOSALS
+        }
 
     def forward(self, batched_inputs):
         """
