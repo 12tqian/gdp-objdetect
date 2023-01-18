@@ -2,9 +2,10 @@ import torch
 from torch import nn
 from detectron2.config import configurable
 
-from gdp-objdetect.objdetect.registry import (
-    NETWORK_REGISTRY,
-)
+from typing import Dict, List, Optional, Tuple
+
+from ..registry import NETWORK_REGISTRY
+
 
 class BaseProjectionLayer(nn.Module):
     @property
@@ -27,6 +28,7 @@ class IdentityProjection(BaseProjectionLayer):
     def forward(self, x):
         return x
 
+
 class ProjectionLayer(nn.Module):
     def __init__(self, input_dim, proj_dim):
         super().__init__()
@@ -34,7 +36,7 @@ class ProjectionLayer(nn.Module):
         self.proj = nn.Sequential(
             nn.Linear(input_dim, 2 * proj_dim),
             nn.ReLU(),
-            nn.Linear(2 * proj_dim, proj_dim)
+            nn.Linear(2 * proj_dim, proj_dim),
         )
 
     @property
@@ -46,13 +48,16 @@ class ProjectionLayer(nn.Module):
 
 
 class ResidualBlock(nn.Module):
-    def __init__(self, *,
-                 hidden_size,
-                 input_dim,
-                 input_proj,
-                 feature_proj,
-                 use_difference,
-                 include_scaling):
+    def __init__(
+        self,
+        *,
+        hidden_size,
+        input_dim,
+        input_proj,
+        feature_proj,
+        use_difference,
+        include_scaling
+    ):
         super().__init__()
         input_proj_dim = input_proj.proj_dim
         feature_proj_dim = feature_proj.proj_dim
@@ -63,13 +68,12 @@ class ResidualBlock(nn.Module):
 
         if include_scaling:
             self.map_s = nn.Sequential(
-                nn.Linear(input_proj_dim + feature_proj_dim,
-                          hidden_size),
+                nn.Linear(input_proj_dim + feature_proj_dim, hidden_size),
                 nn.ReLU(),
                 nn.Linear(hidden_size, hidden_size),
                 nn.ReLU(),
                 nn.Linear(hidden_size, input_dim),
-                nn.Hardtanh(min_val=-2, max_val=2)
+                nn.Hardtanh(min_val=-2, max_val=2),
             )
 
         self.map_t = nn.Sequential(
@@ -77,7 +81,7 @@ class ResidualBlock(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
-            nn.Linear(hidden_size, input_dim)
+            nn.Linear(hidden_size, input_dim),
         )
 
     def forward(self, F, x):
@@ -93,39 +97,49 @@ class ResidualBlock(nn.Module):
             x = x * torch.exp(-s)
         return x
 
+
 # TODO: change to cfg format
 @NETWORK_REGISTRY.register()
 class ResidualNet(nn.Module):
     @configurable
-    def __init__(self, *,
-                 input_dim,
-                 feature_dim,
-                 input_proj_dim=None,
-                 feature_proj_dim=None,
-                 num_block,
-                 hidden_size,
-                 use_difference=True,
-                 include_scaling=True):
+    def __init__(
+        self,
+        *,
+        input_dim,
+        feature_dim,
+        num_block,
+        hidden_size,
+        input_proj_dim=None,
+        feature_proj_dim=None,
+        use_difference=True,
+        include_scaling=True
+    ):
         super().__init__()
 
-        self.input_proj = (ProjectionLayer(input_dim, input_proj_dim)
-                           if input_proj_dim is not None
-                           else IdentityProjection(input_dim))
+        self.input_proj = (
+            ProjectionLayer(input_dim, input_proj_dim)
+            if input_proj_dim is not None
+            else IdentityProjection(input_dim)
+        )
 
-        self.feature_proj = (ProjectionLayer(feature_dim, feature_proj_dim)
-                             if feature_proj_dim is not None
-                             else IdentityProjection(feature_dim))
+        self.feature_proj = (
+            ProjectionLayer(feature_dim, feature_proj_dim)
+            if feature_proj_dim is not None
+            else IdentityProjection(feature_dim)
+        )
 
         self.blocks = nn.ModuleList()
         for i in range(num_block):
-            self.blocks.append(ResidualBlock(
-                hidden_size=hidden_size,
-                input_dim=input_dim,
-                input_proj=self.input_proj,
-                feature_proj=self.feature_proj,
-                use_difference=use_difference,
-                include_scaling=include_scaling,
-            ))
+            self.blocks.append(
+                ResidualBlock(
+                    hidden_size=hidden_size,
+                    input_dim=input_dim,
+                    input_proj=self.input_proj,
+                    feature_proj=self.feature_proj,
+                    use_difference=use_difference,
+                    include_scaling=include_scaling,
+                )
+            )
 
     @classmethod
     def from_config(cls, cfg):
@@ -136,12 +150,16 @@ class ResidualNet(nn.Module):
             "hidden_size": cfg.NETWORK.HIDDEN_SIZE,
         }
 
-    def forward(self, F, x):
-        '''
+    def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
+        """
         Args:
             F: NxC
             x: NxBxD
-        '''
+        """
+
+        F = torch.stack(input["encoding"] for input in batched_inputs)
+        x = torch.stack(input["proposal_boxes"] for input in batched_inputs)
+
         if F.ndim == 2:
             B = x.shape[1]
             F = F.unsqueeze(1).expand(-1, B, -1)

@@ -127,7 +127,10 @@ class LocalGlobalEncoder(nn.Module):
 
         encoding = self.ffn(torch.cat((roi_features, global_features), dim=2))
 
-        return encoding
+        for input, item_encoding in zip(batched_inputs, encoding):
+            input["encoding"] = item_encoding
+
+        return batched_inputs
 
     def preprocess_image(self, batched_inputs):
         """
