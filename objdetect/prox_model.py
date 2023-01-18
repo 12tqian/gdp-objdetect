@@ -83,13 +83,17 @@ class ProxModel(nn.Module):
     @classmethod
     def from_config(cls, cfg):
         train_proposal_generator = (
-            PROPOSAL_REGISTRY.get(cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.NAME)(cfg)
+            PROPOSAL_REGISTRY.get(cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.NAME)(
+                cfg, is_inf_proposal=False
+            )
             if cfg.TRAIN_PROPOSAL_GENERATOR.NAME is not None
             else None
         )
 
         inference_proposal_generator = (
-            PROPOSAL_REGISTRY.get(cfg.MODEL.INFERENCE_PROPOSAL_GENERATOR.NAME)(cfg)
+            PROPOSAL_REGISTRY.get(cfg.MODEL.INFERENCE_PROPOSAL_GENERATOR.NAME)(
+                cfg, is_inf_proposal=True
+            )
             if cfg.INFERENCE_PROPOSAL_GENERATOR.NAME is not None
             else train_proposal_generator
         )
@@ -170,9 +174,9 @@ class ProxModel(nn.Module):
         proposal_boxes = torch.stack(proposal_boxes)
         gt_boxes = torch.stack([x["instances"] for x in batched_inputs])
 
-        results = self.detection_loss(results, gt_boxes) 
+        results = self.detection_loss(results, gt_boxes)
         results = self.transport_loss(results, proposal_boxes)
-        
+
         return results
 
     def inference(

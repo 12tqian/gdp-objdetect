@@ -7,6 +7,7 @@ Registry for proposals generation used in prox models e.g. uniform, perturbation
 The registered object must be a callable that accepts one argument:
 
 1. A :class:`detectron2.config.CfgNode`
+2. A :class:`bool`, which represents whether the input is a validation proposal.
 
 Registered object must return instance of :class:`nn.Module`.
 """
