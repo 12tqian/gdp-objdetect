@@ -136,7 +136,6 @@ class ProxModel(nn.Module):
                 Each item in the list contains the inputs for one image.
                 For now, each item in the list is a dict that contains:
                 * image: Tensor, image in (C, H, W) format.
-                * instances (optional): groundtruth :class:`Instances`
                 * instances (optional): groundtruth boxes tensor shape num_proposal_boxes x 4
                 Other information that's included in the original dicts, such as:
                 * "height", "width" (int): the output resolution of the model, used in inference.

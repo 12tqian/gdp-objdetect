@@ -18,7 +18,7 @@ class RandomBoxes(nn.Module):
             "num_proposal_boxes": cfg.PROPOSAL_GENERATOR.NUM_PROPOSALS
         }
 
-    def forward(batched_inputs):
+    def forward(self, batched_inputs):
         """
         Args:
             batched_inputs: a list, batched outputs of :class:`DatasetMapper` .
@@ -41,18 +41,8 @@ class RandomBoxes(nn.Module):
                 * "height", "width" (int): the output resolution of the model, used in inference.
                   See :meth:`postprocess` for details.
         """
-        for image_input in batched_inputs:
-            instances = []
-            for _ in self.num_proposal_boxes:
-                center_x = random.randint(5, 995)
-                center_y = random.randint(5, 995)
-                box_height = image_input["height"] * random.randint(center_x//2, 999-center_x//2) // 1000
-                box_width = image_input["width"] * random.randint(center_y//2, 999-center_y//2) // 1000
-                center_x = image_input["height"] * center_x // 1000
-                center_y = image_input["width"] * center_y // 1000
-                instances.append(torch.Tensor(center_x, center_y), box_height, box_width)
-            
-            image_input["proposal_boxes"] = torch.Stack(instances)
+        for image_input in batched_inputs:            
+            image_input["proposal_boxes"] = torch.rand(self.num_proposal_boxes, 4)
 
         return batched_inputs
 
@@ -66,12 +56,13 @@ class NoisedGroundTruth(nn.Module):
     @classmethod
     def from_config(cls, cfg):
         return {
-            
+            "num_proposal_boxes": cfg.PROPOSAL_GENERATOR.NUM_PROPOSALS
         }
 
-    def forward(batched_inputs):
+    def forward(batched_inputs, noise_scale):
         """
         Args:
+            noise_scale: proportion of gaussian noise to add to boxes
             batched_inputs: a list, batched outputs of :class:`DatasetMapper` .
                 Each item in the list contains the inputs for one image.
                 For now, each item in the list is a dict that contains:
@@ -92,5 +83,8 @@ class NoisedGroundTruth(nn.Module):
                 * "height", "width" (int): the output resolution of the model, used in inference.
                   See :meth:`postprocess` for details.
         """
-
+        for image_input in batched_inputs:            
+            noise = torch.randn(self.num_proposal_boxes, 4)
+            image_input["proposal_boxes"] = (1 - noise_scale) * image_input["proposal_boxes"] + noise_scale * noise
+        
         return batched_inputs
