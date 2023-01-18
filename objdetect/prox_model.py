@@ -137,7 +137,7 @@ class ProxModel(nn.Module):
                 For now, each item in the list is a dict that contains:
                 * image: Tensor, image in (C, H, W) format.
                 * instances (optional): groundtruth :class:`Instances`
-                * instances (optional): groundtruth boxes tensor shape 4 x num_proposal_boxes
+                * instances (optional): groundtruth boxes tensor shape num_proposal_boxes x 4
                 Other information that's included in the original dicts, such as:
                 * "height", "width" (int): the output resolution of the model, used in inference.
                   See :meth:`postprocess` for details.

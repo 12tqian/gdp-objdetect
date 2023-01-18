@@ -153,7 +153,7 @@ class ResidualNet(nn.Module):
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
         """
         Args:
-            F: NxC
+            F: NxBxC
             x: NxBxD
         """
 
