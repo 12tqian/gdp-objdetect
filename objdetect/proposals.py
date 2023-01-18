@@ -1,10 +1,9 @@
 import torch
 import random
 
-
-from gdp-objdetect.objdetect.registry import (
-    PROPOSAL_REGISTRY,
-)
+from detectron2.config import configurable
+import torch.nn as nn
+from .registry import PROPOSAL_REGISTRY
 
 @PROPOSAL_REGISTRY.register()
 class RandomBoxes(nn.Module):
