@@ -4,7 +4,7 @@ import random
 from detectron2.config import configurable
 import torch.nn as nn
 from .registry import PROPOSAL_REGISTRY
-
+from .utils.box_utils import box_clamp, box_cxcywh_to_xyxy
 
 @PROPOSAL_REGISTRY.register()
 class RandomBoxes(nn.Module):
@@ -14,12 +14,8 @@ class RandomBoxes(nn.Module):
         self.num_proposal_boxes = num_proposal_boxes
 
     @classmethod
-    def from_config(cls, cfg, is_inf_proposal=False):
-        return {
-            "num_proposal_boxes": cfg.TRAIN_PROPOSAL_GENERATOR.NUM_PROPOSALS
-            if not is_inf_proposal
-            else cfg.INFERENCE_PROPOSAL_GENERATOR.NUM_PROPOSALS
-        }
+    def from_config(cls, cfg):
+        return {"num_proposal_boxes": cfg.PROPOSAL_GENERATOR.NUM_PROPOSALS}
 
     def forward(self, batched_inputs):
         """
@@ -44,8 +40,12 @@ class RandomBoxes(nn.Module):
                 * "height", "width" (int): the output resolution of the model, used in inference.
                   See :meth:`postprocess` for details.
         """
-        for image_input in batched_inputs:            
-            image_input["proposal_boxes"] = torch.rand(self.num_proposal_boxes, 4)
+        for image_input in batched_inputs:
+
+            proposal_boxes = torch.rand(self.num_proposal_boxes, 4)
+            proposal_boxes = box_clamp(proposal_boxes)
+            proposal_boxes = box_cxcywh_to_xyxy(proposal_boxes)
+            # image_input["proposal_boxes"] = proposal_boxes * torch.Tensor(image_input["width"], image_input["height"], image_input["width"], image_input["height"])
 
         return batched_inputs
 
@@ -87,7 +87,12 @@ class NoisedGroundTruth(nn.Module):
                   See :meth:`postprocess` for details.
         """
         for image_input in batched_inputs:            
-            noise = torch.randn(self.num_proposal_boxes, 4)
-            image_input["proposal_boxes"] = (1 - noise_scale) * image_input["proposal_boxes"] + noise_scale * noise
+            # Note: Is the batched_input gt boxes normalized?
+            noise = torch.randn(4)
+            proposal_boxes = (1 - noise_scale) * proposal_boxes + noise_scale * noise
+            proposal_boxes = box_clamp(proposal_boxes)
+            proposal_boxes = box_cxcywh_to_xyxy(proposal_boxes)
+            # image_input["proposal_boxes"] = proposal_boxes * torch.Tensor(image_input["width"], image_input["height"], image_input["width"], image_input["height"])
+
         
         return batched_inputs

@@ -12,3 +12,8 @@ def box_xyxy_to_cxcywh(x):
     b = [(x0 + x1) / 2, (y0 + y1) / 2,
          (x1 - x0), (y1 - y0)]
     return torch.stack(b, dim=-1)
+
+def box_clamp(x, scale=2):
+    x = torch.clamp(x, min=-1 * 2, max=2)
+    x = ((x / 2) + 1) / 2
+    return x
