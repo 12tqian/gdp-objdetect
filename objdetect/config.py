@@ -60,7 +60,7 @@ def add_objdetect_config(cfg):
     cfg.NETWORK.HIDDEN_SIZE = 256
 
     # TODO: Proposal Generator
-    cfg.PROPOSAL_GENERATOR.NAME = "RandomBoxes"
+    cfg.PROPOSAL_GENERATOR.NAME = "UniformRandomBoxes"
     cfg.PROPOSAL_GENERATOR.NUM_PROPOSALS = 50
 
     # Optimizer.

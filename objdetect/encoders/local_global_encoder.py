@@ -11,6 +11,7 @@ from detectron2.modeling.backbone import Backbone
 from detectron2.structures import Boxes, ImageList
 from detectron2.config import configurable
 from registry import ENCODER_REGISTRY
+from ..utils.box_utils import box_xyxy_to_cxcywh, box_clamp_01, box_cxcywh_to_xyxy
 
 # encoder just takes in batched inputs purely
 
@@ -105,10 +106,17 @@ class LocalGlobalEncoder(nn.Module):
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
         images = self.preprocess_image(batched_inputs)
 
-        proposal_boxes = [Boxes(x["proposal_boxes"]) for x in batched_inputs]
+        batch_size = len(batched_inputs)
+        proposal_boxes = []
+        for i in range(batch_size):
+            # making boxes valid
+            bi = batched_inputs[i]
+            h, w = bi["image"].shape[-2:]
+            scale = torch.Tensor([w, h, w, h])
+            boxes = box_cxcywh_to_xyxy(box_clamp_01(box_xyxy_to_cxcywh(bi["proposal_boxes"]) / scale)) * scale
+            proposal_boxes.append(Boxes(boxes))
 
         # following line of code assumes that each image in the batch has the same number of proposal_boxees
-        batch_size = len(batched_inputs)
         num_boxes_per_batch = len(batched_inputs[0])
 
         fpn_features_dict = self.local_backbone(images.tensor)
