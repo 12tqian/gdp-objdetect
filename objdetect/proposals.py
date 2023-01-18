@@ -44,14 +44,14 @@ class RandomBoxes(nn.Module):
         """
         for image_input in batched_inputs:
             instances = []
-            for _ in self.num_proposal_boxes
+            for _ in self.num_proposal_boxes:
                 center_x = random.randint(5, 995)
                 center_y = random.randint(5, 995)
-                box_height = image_input["height"] * random.randint(center_x//2, 999-center_x//2) / 1000.0
-                box_width = image_input["width"] * random.randint(center_y//2, 999-center_y//2) / 1000.0
-                center_x = image_input["height"] * center_x / 1000.0
-                center_y = image_input["width"] * center_y / 1000.0
-                instances.append(torch)
+                box_height = image_input["height"] * random.randint(center_x//2, 999-center_x//2) // 1000
+                box_width = image_input["width"] * random.randint(center_y//2, 999-center_y//2) // 1000
+                center_x = image_input["height"] * center_x // 1000
+                center_y = image_input["width"] * center_y // 1000
+                instances.append(torch.Tensor(center_x, center_y), box_height, box_width)
             
             image_input["proposal_boxes"] = torch.Stack(instances)
 
