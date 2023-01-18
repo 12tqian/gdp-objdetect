@@ -10,10 +10,11 @@ from detectron2.modeling.backbone.fpn import build_resnet_fpn_backbone
 from detectron2.modeling.backbone import Backbone
 from detectron2.structures import Boxes, ImageList
 from detectron2.config import configurable
+from registry import ENCODER_REGISTRY
 
 # encoder just takes in batched inputs purely
 
-
+@ENCODER_REGISTRY.register()
 class LocalGlobalEncoder(nn.Module):
     """
     Encodes local and global features from ROI and resnet using two separate resent networks.
