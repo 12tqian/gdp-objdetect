@@ -1,3 +1,9 @@
+from detectron2.modeling import (
+    META_ARCH_REGISTRY,
+    Backbone,
+    detector_postprocess,
+)
+
 #!/usr/bin/env python
 # Copyright (c) Facebook, Inc. and its affiliates.
 """
@@ -124,7 +130,6 @@ def do_train(cfg, model, resume=False):
     model.train()
     optimizer = build_optimizer(cfg, model)
     scheduler = build_lr_scheduler(cfg, optimizer)
-
     checkpointer = DetectionCheckpointer(
         model, cfg.OUTPUT_DIR, optimizer=optimizer, scheduler=scheduler
     )
@@ -147,19 +152,18 @@ def do_train(cfg, model, resume=False):
 
     # compared to "train_net.py", we do not support accurate timing and
     # precise BN here, because they are not trivial to implement in a small training loop
-    mapper = ObjDetectDatasetMapper(cfg, is_train=True)
+    mapper = ProxModelDatasetMapper(cfg, is_train=True)
     data_loader = build_detection_train_loader(cfg, mapper=mapper)
     logger.info("Starting training from iteration {}".format(start_iter))
     with EventStorage(start_iter) as storage:
         for data, iteration in zip(data_loader, range(start_iter, max_iter)):
             storage.iter = iteration
 
-            sum_loss = torch.zeros(1)
-            for h in len(num_horizon):
+            sum_loss = torch.zeros(1).to(model.device) # TODO: hacky
+            for h in range(num_horizon):
                 data = model(data)
-
                 for item in data:
-                    sum_loss += item["loss"]
+                    sum_loss = sum_loss + item["loss"]
 
                 for item in data:
                     item["proposal_boxes"] = item["pred_boxes"].detach()

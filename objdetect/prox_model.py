@@ -38,7 +38,9 @@ class ProxModel(nn.Module):
         self,
         *,
         train_proposal_generator: Optional[nn.Module],
+        train_num_proposals: int,
         inference_proposal_generator: Optional[nn.Module],
+        inference_num_proposals: int,
         encoder: Backbone,
         network: nn.Module,
         transport_loss: nn.Module,
@@ -59,7 +61,9 @@ class ProxModel(nn.Module):
         """
         super().__init__()
         self.train_proposal_generator = train_proposal_generator
+        self.train_num_proposals = train_num_proposals
         self.inference_proposal_generator = inference_proposal_generator
+        self.inference_num_proposals = inference_num_proposals
         self.encoder = encoder
         self.network = network
         self.transport_loss = transport_loss
@@ -71,7 +75,7 @@ class ProxModel(nn.Module):
             assert (
                 input_format is not None
             ), "input_format is required for visualization!"
-
+        
         self.register_buffer(
             "pixel_mean", torch.tensor(pixel_mean).view(-1, 1, 1), False
         )
@@ -86,7 +90,7 @@ class ProxModel(nn.Module):
             PROPOSAL_REGISTRY.get(cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.NAME)(
                 cfg, is_inf_proposal=False
             )
-            if cfg.TRAIN_PROPOSAL_GENERATOR.NAME is not None
+            if cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.NAME is not None
             else None
         )
 
@@ -94,28 +98,34 @@ class ProxModel(nn.Module):
             PROPOSAL_REGISTRY.get(cfg.MODEL.INFERENCE_PROPOSAL_GENERATOR.NAME)(
                 cfg, is_inf_proposal=True
             )
-            if cfg.INFERENCE_PROPOSAL_GENERATOR.NAME is not None
+            if cfg.MODEL.INFERENCE_PROPOSAL_GENERATOR.NAME is not None
             else train_proposal_generator
         )
-
+        # TODO: do later
         encoder = ENCODER_REGISTRY.get(cfg.MODEL.ENCODER.NAME)(
-            cfg, ShapeSpec(channels=len(cfg.MODEL.PIXEL_MEAN))
+            cfg
+            # , ShapeSpec(channels=len(cfg.MODEL.PIXEL_MEAN))
         )
 
         network = NETWORK_REGISTRY.get(cfg.MODEL.NETWORK.NAME)(
-            cfg, encoder.output_shape
+            cfg
+            # , encoder.output_shape
         )
 
         transport_loss = LOSS_REGISTRY.get(cfg.MODEL.TRANSPORT_LOSS.NAME)(
-            cfg, network.output_shape
+            cfg
+            # , network.output_shape
         )
         detection_loss = LOSS_REGISTRY.get(cfg.MODEL.DETECTION_LOSS.NAME)(
-            cfg, network.output_shape
+            cfg
+            # , network.output_shape
         )
 
         return {
             "train_proposal_generator": train_proposal_generator,
+            "train_num_proposals": cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.NUM_PROPOSALS,
             "inference_proposal_generator": inference_proposal_generator,
+            "inference_num_proposals": cfg.MODEL.INFERENCE_PROPOSAL_GENERATOR.NUM_PROPOSALS,
             "encoder": encoder,
             "network": network,
             "transport_loss": transport_loss,
@@ -157,7 +167,15 @@ class ProxModel(nn.Module):
 
         if "proposal_boxes" not in batched_inputs[0]:
             assert self.train_proposal_generator is not None
-            batched_inputs = self.train_proposal_generator(batched_inputs)
+            batched_inputs = self.train_proposal_generator(
+                self.train_num_proposals, batched_inputs
+            )
+
+        for bi in batched_inputs:
+            for key in bi:
+                if isinstance(bi[key], (torch.Tensor, Instances)):
+                    bi[key] = bi[key].to(self.device)
+                
 
         features = self.encoder(batched_inputs)
         results = self.network(features)
@@ -171,10 +189,8 @@ class ProxModel(nn.Module):
                 self.visualize_training(batched_inputs, proposal_boxes)
 
         proposal_boxes = torch.stack(proposal_boxes)
-        gt_boxes = torch.stack([x["instances"] for x in batched_inputs])
-
-        results = self.detection_loss(results, gt_boxes)
-        results = self.transport_loss(results, proposal_boxes)
+        results = self.detection_loss(results)
+        results = self.transport_loss(results)
 
         return results
 
@@ -197,7 +213,9 @@ class ProxModel(nn.Module):
 
         if "proposal_boxes" not in batched_inputs[0]:
             assert self.inference_proposal_generator is not None
-            batched_inputs = self.inference_proposal_generator(batched_inputs)
+            batched_inputs = self.inference_proposal_generator(
+                self.inference_num_proposals, batched_inputs
+            )
 
         for _ in range(repetitions):
             features = self.encoder(batched_inputs)

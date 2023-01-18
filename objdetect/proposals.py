@@ -1,23 +1,27 @@
 import torch
+from typing import List, Dict
 import random
 
 from detectron2.config import configurable
 import torch.nn as nn
 from .registry import PROPOSAL_REGISTRY
-from .utils.box_utils import box_cxcywh_to_xyxy, box_01_cxcywh
+from .utils.box_utils import box_cxcywh_to_xyxy
+
 
 @PROPOSAL_REGISTRY.register()
 class UniformRandomBoxes(nn.Module):
     @configurable
-    def __init__(self, num_proposal_boxes):
-        super().__init__()
-        self.num_proposal_boxes = num_proposal_boxes
+    def __init__(self, *, is_inf_proposal: bool):
+        super(UniformRandomBoxes, self).__init__()
+        pass
 
     @classmethod
-    def from_config(cls, cfg):
-        return {"num_proposal_boxes": cfg.PROPOSAL_GENERATOR.NUM_PROPOSALS}
+    def from_config(cls, cfg, is_inf_proposal: bool):
+        return {"is_inf_proposal": is_inf_proposal}
 
-    def forward(self, batched_inputs):
+    def forward(
+        self, num_proposal_boxes: int, batched_inputs: List[Dict[str, torch.Tensor]]
+    ):
         """
         Args:
             batched_inputs: a list, batched outputs of :class:`DatasetMapper` .
@@ -41,9 +45,14 @@ class UniformRandomBoxes(nn.Module):
                   See :meth:`postprocess` for details.
         """
         for image_input in batched_inputs:
-            proposal_boxes = torch.rand(self.num_proposal_boxes, 4)
+            proposal_boxes = torch.rand(num_proposal_boxes, 4)
             proposal_boxes = box_cxcywh_to_xyxy(proposal_boxes)
-            image_input["proposal_boxes"] = proposal_boxes * torch.Tensor(image_input["width"], image_input["height"], image_input["width"], image_input["height"])
+            image_input["proposal_boxes"] = proposal_boxes * torch.Tensor(
+                [image_input["width"],
+                image_input["height"],
+                image_input["width"],
+                image_input["height"]]
+            )
 
         return batched_inputs
 
@@ -56,9 +65,7 @@ class NoisedGroundTruth(nn.Module):
 
     @classmethod
     def from_config(cls, cfg):
-        return {
-            "num_proposal_boxes": cfg.PROPOSAL_GENERATOR.NUM_PROPOSALS
-        }
+        return {"num_proposal_boxes": cfg.PROPOSAL_GENERATOR.NUM_PROPOSALS}
 
     def forward(batched_inputs, noise_scale):
         """
@@ -84,13 +91,12 @@ class NoisedGroundTruth(nn.Module):
                 * "height", "width" (int): the output resolution of the model, used in inference.
                   See :meth:`postprocess` for details.
         """
-        for image_input in batched_inputs:            
+        for image_input in batched_inputs:
             # Note: Is the batched_input gt boxes normalized?
             noise = torch.randn(4)
             proposal_boxes = (1 - noise_scale) * proposal_boxes + noise_scale * noise
-            proposal_boxes = box_clamp(proposal_boxes)
+            # proposal_boxes = box_clamp(proposal_boxes)
             proposal_boxes = box_cxcywh_to_xyxy(proposal_boxes)
             # image_input["proposal_boxes"] = proposal_boxes * torch.Tensor(image_input["width"], image_input["height"], image_input["width"], image_input["height"])
 
-        
         return batched_inputs

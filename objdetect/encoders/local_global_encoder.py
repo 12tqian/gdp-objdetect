@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from typing import List, Dict, Tuple
 
 import torch.nn as nn
@@ -10,10 +11,13 @@ from detectron2.modeling.backbone.fpn import build_resnet_fpn_backbone
 from detectron2.modeling.backbone import Backbone
 from detectron2.structures import Boxes, ImageList
 from detectron2.config import configurable
-from registry import ENCODER_REGISTRY
+from ..registry import ENCODER_REGISTRY
 from ..utils.box_utils import box_xyxy_to_cxcywh, box_clamp_01, box_cxcywh_to_xyxy
+from iopath.common.file_io import HTTPURLHandler, PathManager
+import pickle
 
 # encoder just takes in batched inputs purely
+
 
 @ENCODER_REGISTRY.register()
 class LocalGlobalEncoder(nn.Module):
@@ -32,7 +36,8 @@ class LocalGlobalEncoder(nn.Module):
         fpn_in_features: List,
         pooler_resolution: int,
         pixel_mean: Tuple[float],
-        pixel_std: Tuple[float]
+        pixel_std: Tuple[float],
+        weights: str,
     ):
         super().__init__()
         self.local_backbone = local_backbone
@@ -42,13 +47,17 @@ class LocalGlobalEncoder(nn.Module):
         self.box_pooler = box_pooler
         self.pooler_resolution = pooler_resolution
 
-        self.size_divisibility = local_backbone.size_divisibility
-        assert local_backbone.size_divisibility == global_backbone.size_divisibility
+        self.size_divisibility = max(
+            local_backbone.size_divisibility, global_backbone.size_divisibility
+        )
+        # assert local_backbone.size_divisibility == global_backbone.size_divisibility
         assert "res5" in global_backbone.output_shape()
 
-        pixel_mean = torch.Tensor(pixel_mean).view(3, 1, 1)
-        pixel_std = torch.Tensor(pixel_std).view(3, 1, 1)
-        self.normalizer = lambda x: (x - pixel_mean) / pixel_std
+        self.register_buffer(
+            "pixel_mean", torch.tensor(pixel_mean).view(-1, 1, 1), False
+        )
+        self.register_buffer("pixel_std", torch.tensor(pixel_std).view(-1, 1, 1), False)
+        self.normalizer = lambda x: (x - self.pixel_mean) / self.pixel_std
 
         # input is 256x7x7, output is 256x1x1
         self.local_line_layers = nn.Sequential(
@@ -67,6 +76,27 @@ class LocalGlobalEncoder(nn.Module):
             nn.Linear(256, self.encoder_dim),
         )
 
+        self.path_manager: PathManager = PathManager()
+        self.path_manager.register_handler(HTTPURLHandler())
+
+        weights = self.path_manager.get_local_path(weights)
+        # with PathManager.open(weights, "rb") as f:
+        with open(weights, "rb") as f:
+            state_dict = pickle.load(f, encoding="latin1")["model"]
+        for k in list(state_dict.keys()):
+            v = state_dict[k]
+            if not isinstance(v, np.ndarray) and not isinstance(v, torch.Tensor):
+                raise ValueError(
+                    "Unsupported type found in checkpoint! {}: {}".format(k, type(v))
+                )
+            if not isinstance(v, torch.Tensor):
+                state_dict[k] = torch.from_numpy(v)
+        # breakpoint()
+        state_dict.pop("stem.fc.weight")
+        state_dict.pop("stem.fc.bias")
+        self.global_backbone.load_state_dict(state_dict)
+        self.local_backbone.bottom_up.load_state_dict(state_dict)
+
     @classmethod
     def from_config(cls, cfg):
         input_shape = ShapeSpec(channels=len(cfg.MODEL.PIXEL_MEAN))
@@ -82,6 +112,7 @@ class LocalGlobalEncoder(nn.Module):
             "encoder_dim": cfg.MODEL.ENCODER.DIMENSION,
             "pixel_mean": cfg.MODEL.PIXEL_MEAN,
             "pixel_std": cfg.MODEL.PIXEL_STD,
+            "weights": cfg.MODEL.ENCODER.WEIGHTS,
         }
 
     @classmethod
@@ -112,12 +143,17 @@ class LocalGlobalEncoder(nn.Module):
             # making boxes valid
             bi = batched_inputs[i]
             h, w = bi["image"].shape[-2:]
-            scale = torch.Tensor([w, h, w, h])
-            boxes = box_cxcywh_to_xyxy(box_clamp_01(box_xyxy_to_cxcywh(bi["proposal_boxes"]) / scale)) * scale
+            scale = torch.Tensor([w, h, w, h]).to(bi["proposal_boxes"].device)
+            boxes = (
+                box_cxcywh_to_xyxy(
+                    box_clamp_01(box_xyxy_to_cxcywh(bi["proposal_boxes"]) / scale)
+                )
+                * scale
+            )
             proposal_boxes.append(Boxes(boxes))
 
         # following line of code assumes that each image in the batch has the same number of proposal_boxees
-        num_boxes_per_batch = len(batched_inputs[0])
+        num_boxes_per_batch = len(batched_inputs[0]["proposal_boxes"])
 
         fpn_features_dict = self.local_backbone(images.tensor)
         global_features = self.global_backbone(images.tensor)["res5"]
@@ -131,8 +167,8 @@ class LocalGlobalEncoder(nn.Module):
             batch_size, num_boxes_per_batch, -1
         )
         global_features = self.global_line_layers(global_features).view(
-            batch_size, num_boxes_per_batch, -1
-        )
+            batch_size, 1, -1
+        ).repeat(1, num_boxes_per_batch, 1)
 
         encoding = self.ffn(torch.cat((roi_features, global_features), dim=2))
 

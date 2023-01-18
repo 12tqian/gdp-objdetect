@@ -1,6 +1,6 @@
 MODEL:
   META_ARCHITECTURE: "ProxModel"
-  WEIGHTS: "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
+  # WEIGHTS: "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
   PIXEL_MEAN: [123.675, 116.280, 103.530]
   PIXEL_STD: [58.395, 57.120, 57.375]
   BACKBONE:
@@ -16,32 +16,35 @@ MODEL:
     POOLER_RESOLUTION: 7
     POOLER_SAMPLING_RATIO: 2
   TRAIN_PROPOSAL_GENERATOR:
-    NAME: "TrainProposalGeneratorPLACEHOLDER"
+    NAME: "UniformRandomBoxes"
   INFERENCE_PROPOSAL_GENERATOR:
-    NAME: "TrainProposalGeneratorPLACEHOLDER"
+    NAME: "UniformRandomBoxes"
   ENCODER:
-    NAME: "EncoderPLACEHOLDER"
+    NAME: "LocalGlobalEncoder"
+    # WEIGHTS: "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
+    WEIGHTS: "https://dl.fbaipublicfiles.com/detectron2/ImageNetPretrained/torchvision/R-50.pkl"
   NETWORK:
-    NAME: "NetworkPLACEHOLDER"
+    NAME: "ResidualNet"
   TRANSPORT_LOSS:
-    NAME: "TransportLossPLACHOLDER"
+    NAME: "BoxDistanceLoss"
   DETECTION_LOSS:
-    Name: "DetectionLossPLACEHOLDER"
+    NAME: "BoxProjectionLoss"
+  NUM_HORIZON: 8
 SOLVER:
-  IMS_PER_BATCH: 16
-  BASE_LR: 0.000025
-  STEPS: (210000, 250000)
-  MAX_ITER: 270000
-  WARMUP_FACTOR: 0.01
-  WARMUP_ITERS: 1000
-  WEIGHT_DECAY: 0.0001
-  OPTIMIZER: "ADAMW"
-  BACKBONE_MULTIPLIER: 1.0  # keep same with BASE_LR.
-  CLIP_GRADIENTS:
-    ENABLED: True
-    CLIP_TYPE: "full_model"
-    CLIP_VALUE: 1.0
-    NORM_TYPE: 2.0
+  IMS_PER_BATCH: 4
+  # BASE_LR: 0.000025
+  # STEPS: (210000, 250000)
+  # MAX_ITER: 270000
+  # WARMUP_FACTOR: 0.01
+  # WARMUP_ITERS: 1000
+  # WEIGHT_DECAY: 0.0001
+  # OPTIMIZER: "ADAMW"
+  # BACKBONE_MULTIPLIER: 1.0  # keep same with BASE_LR.
+  # CLIP_GRADIENTS:
+  #   ENABLED: True
+  #   CLIP_TYPE: "full_model"
+  #   CLIP_VALUE: 1.0
+  #   NORM_TYPE: 2.0
 SEED: 40244023
 INPUT:
   MIN_SIZE_TRAIN: (480, 512, 544, 576, 608, 640, 672, 704, 736, 768, 800)

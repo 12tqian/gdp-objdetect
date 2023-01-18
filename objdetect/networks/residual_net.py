@@ -115,7 +115,9 @@ class ResidualNet(nn.Module):
         include_scaling=True
     ):
         super().__init__()
-
+        self.input_dim = input_dim
+        self.feature_dim = feature_dim
+        self.hidden_size = hidden_size
         self.input_proj = (
             ProjectionLayer(input_dim, input_proj_dim)
             if input_proj_dim is not None
@@ -144,25 +146,28 @@ class ResidualNet(nn.Module):
     @classmethod
     def from_config(cls, cfg):
         return {
-            "input_dim": cfg.NETWORK.INPUT_DIM,
-            "feature_dim": cfg.NETWORK.FEATURE_DIM,
-            "num_block": cfg.NETWORK.NUM_BLOCK,
-            "hidden_size": cfg.NETWORK.HIDDEN_SIZE,
+            "input_dim": cfg.MODEL.NETWORK.INPUT_DIM,
+            "feature_dim": cfg.MODEL.NETWORK.FEATURE_DIM,
+            "num_block": cfg.MODEL.NETWORK.NUM_BLOCK,
+            "hidden_size": cfg.MODEL.NETWORK.HIDDEN_SIZE,
+            "feature_proj_dim": cfg.MODEL.NETWORK.FEATURE_PROJ_DIM,
+            "input_proj_dim": cfg.MODEL.NETWORK.INPUT_PROJ_DIM
         }
 
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
         """
-        Args:
+        Args:f
             F: NxBxC
             x: NxBxD
         """
-
-        F = torch.stack(input["encoding"] for input in batched_inputs)
-        x = torch.stack(input["proposal_boxes"] for input in batched_inputs)
+        F = torch.stack([input["encoding"] for input in batched_inputs])
+        x = torch.stack([input["proposal_boxes"] for input in batched_inputs])
 
         if F.ndim == 2:
             B = x.shape[1]
             F = F.unsqueeze(1).expand(-1, B, -1)
         for block in self.blocks:
             x = block(F, x)
-        return x
+        for bi, boxes in zip(batched_inputs, x):
+            bi["pred_boxes"] = boxes
+        return batched_inputs
