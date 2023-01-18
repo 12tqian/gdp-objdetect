@@ -61,6 +61,7 @@ def add_objdetect_config(cfg):
 
     # TODO: Proposal Generator
     cfg.PROPOSAL_GENERATOR.NAME = "RandomBoxes"
+    cfg.PROPOSAL_GENERATOR.NUM_PROPOSALS = 50
 
     # Optimizer.
     cfg.SOLVER.OPTIMIZER = "ADAMW"
