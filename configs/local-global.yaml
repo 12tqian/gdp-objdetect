@@ -5,13 +5,13 @@ MODEL:
     DEPTH: 50
     STRIDE_IN_1X1: False
 DATASETS:
-  #TRAIN: ("coco_2017_train",)
-  #TEST:  ("coco_2017_val",)
-  TRAIN: ("synthetic_train",)
-  TEST:  ("synthetic_val",)
-# SOLVER:
-#   STEPS: (350000, 420000)
-  # MAX_ITER: 450000
+  TRAIN: ("coco_2017_train",)
+  TEST:  ("coco_2017_val",)
+  TRAIN: ("synthetic_dataset",)
+  TEST:  ("synthetic_dataset",)
+SOLVER:
+  STEPS: (350000, 420000)
+  MAX_ITER: 450000
 INPUT:
   CROP:
     ENABLED: True

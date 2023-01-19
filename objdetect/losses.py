@@ -22,7 +22,7 @@ class BoxDistanceLoss(nn.Module):
         # TODO: add lambda
         proposals = torch.stack([bi["proposal_boxes"] for bi in batched_inputs])
         preds = torch.stack([bi["pred_boxes"] for bi in batched_inputs])
-        distances = (proposals - preds).square().sum(-1).sqrt() # TODO: fuck this
+        distances = (proposals - preds).square().sum(-1).sqrt()  # TODO: fuck this
         for bi, d in zip(batched_inputs, distances):
             if not torch.isfinite(d).all():
                 print(d)
@@ -56,7 +56,7 @@ class BoxProjectionLoss(nn.Module):
         for bi in batched_inputs:
             max_boxes = max(max_boxes, bi["instances"].gt_boxes.tensor.shape[0])
         N = len(batched_inputs)
-        
+
         device = batched_inputs[0]["image"].device
         gt_truth = torch.zeros(
             [N, max_boxes, 4],
@@ -77,6 +77,10 @@ class BoxProjectionLoss(nn.Module):
         # boxes is NxAx4
         # gt_truth NxBx4
         boxes = torch.stack([bi["pred_boxes"] for bi in batched_inputs])
+        if boxes.max() > 1000:
+            print(boxes.max())
+            assert boxes.max() < 1000
+
         loss = self.box_loss(boxes, gt_truth)
         loss_filled = torch.where(
             masks.unsqueeze(-2).expand(-1, loss.shape[1], -1),
@@ -86,7 +90,6 @@ class BoxProjectionLoss(nn.Module):
         loss, closest_idx = loss_filled.min(-1)
         masks_gathered = torch.gather(masks, 1, closest_idx)
         loss = torch.where(masks_gathered, loss, torch.zeros_like(loss))
-
         for bi, lo in zip(batched_inputs, loss):
             assert torch.isfinite(lo).all()
             if "loss" in bi:

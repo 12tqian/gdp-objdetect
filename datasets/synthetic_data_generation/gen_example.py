@@ -1,9 +1,8 @@
-from PIL import Image, ImageDraw
+from detectron2.data.datasets import register_coco_instances
 
-image = Image.new('RGB', (200, 200))
-draw = ImageDraw.Draw(image)
-draw.ellipse((0, 0, 200, 200), fill = 'blue', outline ='blue')
-draw.point((100, 100), 'red')
-image = image.convert("RGB")
-#image.save('/mnt/tcqian/danielxu/synthetic_data_test/test.jpg')
-image.save('test.jpg')
+register_coco_instances(
+    "synthetic_dataset",
+    {},
+    "/mnt/tcqian/tcqian/gdp-objdetect/datasets/synthetic_dataset/annotations/instances_train.json",
+    "/mnt/tcqian/tcqian/gdp-objdetect/datasets/synthetic_dataset/train",
+)

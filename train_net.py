@@ -65,6 +65,16 @@ logger = logging.getLogger("detectron2")
 
 from objdetect import ProxModelDatasetMapper, add_proxmodel_cfg
 
+from detectron2.data.datasets import register_coco_instances
+
+register_coco_instances(
+    "synthetic_dataset",
+    {},
+    "/mnt/tcqian/tcqian/gdp-objdetect/datasets/synthetic_dataset/annotations/instances_train.json",
+    "/mnt/tcqian/tcqian/gdp-objdetect/datasets/synthetic_dataset/train",
+)
+
+
 
 def get_evaluator(cfg, dataset_name, output_folder=None):
     """
@@ -140,7 +150,6 @@ def do_train(cfg, model, resume=False):
         + 1
     )
     max_iter = cfg.SOLVER.MAX_ITER
-    max_iter = 1
     num_horizon = cfg.MODEL.NUM_HORIZON
 
     periodic_checkpointer = PeriodicCheckpointer(
@@ -160,7 +169,7 @@ def do_train(cfg, model, resume=False):
         for data, iteration in zip(data_loader, range(start_iter, max_iter)):
             storage.iter = iteration
 
-            sum_loss = torch.zeros(1).to(model.device) # TODO: hacky
+            sum_loss = torch.zeros(1).to(model.device)  # TODO: hacky
             for h in range(num_horizon):
                 data = model(data)
                 for item in data:
@@ -169,7 +178,9 @@ def do_train(cfg, model, resume=False):
                 for item in data:
                     item["proposal_boxes"] = item["pred_boxes"].detach()
 
-            sum_loss = sum_loss.mean() / len(data) / num_horizon # TODO: maybe sus, divide by batch size 
+            sum_loss = (
+                sum_loss.mean() / len(data) / num_horizon
+            )  # TODO: maybe sus, divide by batch size
 
             assert torch.isfinite(sum_loss).all()
 
@@ -184,14 +195,14 @@ def do_train(cfg, model, resume=False):
             )
             scheduler.step()
 
-            if (
-                cfg.TEST.EVAL_PERIOD > 0
-                and (iteration + 1) % cfg.TEST.EVAL_PERIOD == 0
-                and iteration != max_iter - 1
-            ):
-                do_test(cfg, model)
-                # Compared to "train_net.py", the test results are not dumped to EventStorage
-                comm.synchronize()
+            # if (
+            #     cfg.TEST.EVAL_PERIOD > 0
+            #     and (iteration + 1) % cfg.TEST.EVAL_PERIOD == 0
+            #     and iteration != max_iter - 1
+            # ):
+            #     do_test(cfg, model)
+            #     # Compared to "train_net.py", the test results are not dumped to EventStorage
+            #     comm.synchronize()
 
             if iteration - start_iter > 5 and (
                 (iteration + 1) % 20 == 0 or iteration == max_iter - 1
