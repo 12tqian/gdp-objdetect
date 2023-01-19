@@ -8,7 +8,7 @@ from detectron2.structures.boxes import BoxMode
 # in the config for coco, they hardcode to look at the relative path datasets/coco
 
 
-ROOT = "/mnt/tcqian/tcqian/gdp-objdetect/"
+ROOT = "/mnt/tcqian/danielxu/gdp-objdetect/"
 def create_dataset(
     dataset_train_size, dataset_val_size, dataset_name, max_num_objects=10
 ):
