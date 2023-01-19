@@ -21,3 +21,7 @@ def synthetic_val_function():
 from detectron2.data import DatasetCatalog
 DatasetCatalog.register("synthetic_train", synthetic_train_function)
 DatasetCatalog.register("synthetic_val", synthetic_val_function)
+
+from detectron2.data import MetadataCatalog
+MetadataCatalog.get("synthetic_val").evaluator_type = "coco"
+MetadataCatalog.get("synthetic_val").thing_classes = ["circle"]
