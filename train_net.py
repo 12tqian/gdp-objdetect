@@ -61,6 +61,8 @@ from detectron2.modeling import build_model
 from detectron2.solver import build_lr_scheduler, build_optimizer
 from detectron2.utils.events import EventStorage
 
+import wandb
+
 logger = logging.getLogger("detectron2")
 
 from objdetect import ProxModelDatasetMapper, add_proxmodel_cfg
@@ -218,6 +220,7 @@ def setup(args):
 
 
 def main(args):
+    wandb.init(project="gdp-objdetect")
     cfg = setup(args)
 
     model = build_model(cfg)

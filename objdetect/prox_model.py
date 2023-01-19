@@ -17,6 +17,7 @@ from detectron2.utils.logger import log_first_n
 from torch import nn
 
 from .utils.box_utils import box_cxcywh_to_xyxy, box_xyxy_to_cxcywh, box_clamp_01
+from .utils.wandb_utils import log_batched_inputs_wandb
 
 from .registry import (
     PROPOSAL_REGISTRY,
@@ -221,6 +222,8 @@ class ProxModel(nn.Module):
 
         results = self.detection_loss(results)
         results = self.transport_loss(results)
+
+        log_batched_inputs_wandb(batched_inputs)
 
         self.denormalize_boxes(batched_inputs)
 

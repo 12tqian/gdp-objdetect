@@ -1,0 +1,123 @@
+wandb_version: 1
+
+_wandb:
+  desc: null
+  value:
+    bounding_box/class_labels:
+      image_0_wandb_delimeter_pred_boxes:
+        key: image_0_wandb_delimeter_pred_boxes
+        type: bounding_box/class_labels
+        value:
+          '1': class_1
+      image_0_wandb_delimeter_proposal_boxes:
+        key: image_0_wandb_delimeter_proposal_boxes
+        type: bounding_box/class_labels
+        value:
+          '1': class_1
+      image_1_wandb_delimeter_pred_boxes:
+        key: image_1_wandb_delimeter_pred_boxes
+        type: bounding_box/class_labels
+        value:
+          '1': class_1
+      image_1_wandb_delimeter_proposal_boxes:
+        key: image_1_wandb_delimeter_proposal_boxes
+        type: bounding_box/class_labels
+        value:
+          '1': class_1
+      image_2_wandb_delimeter_pred_boxes:
+        key: image_2_wandb_delimeter_pred_boxes
+        type: bounding_box/class_labels
+        value:
+          '1': class_1
+      image_2_wandb_delimeter_proposal_boxes:
+        key: image_2_wandb_delimeter_proposal_boxes
+        type: bounding_box/class_labels
+        value:
+          '1': class_1
+      image_3_wandb_delimeter_pred_boxes:
+        key: image_3_wandb_delimeter_pred_boxes
+        type: bounding_box/class_labels
+        value:
+          '1': class_1
+      image_3_wandb_delimeter_proposal_boxes:
+        key: image_3_wandb_delimeter_proposal_boxes
+        type: bounding_box/class_labels
+        value:
+          '1': class_1
+      image_4_wandb_delimeter_pred_boxes:
+        key: image_4_wandb_delimeter_pred_boxes
+        type: bounding_box/class_labels
+        value:
+          '1': class_1
+      image_4_wandb_delimeter_proposal_boxes:
+        key: image_4_wandb_delimeter_proposal_boxes
+        type: bounding_box/class_labels
+        value:
+          '1': class_1
+      image_5_wandb_delimeter_pred_boxes:
+        key: image_5_wandb_delimeter_pred_boxes
+        type: bounding_box/class_labels
+        value:
+          '1': class_1
+      image_5_wandb_delimeter_proposal_boxes:
+        key: image_5_wandb_delimeter_proposal_boxes
+        type: bounding_box/class_labels
+        value:
+          '1': class_1
+      image_6_wandb_delimeter_pred_boxes:
+        key: image_6_wandb_delimeter_pred_boxes
+        type: bounding_box/class_labels
+        value:
+          '1': class_1
+      image_6_wandb_delimeter_proposal_boxes:
+        key: image_6_wandb_delimeter_proposal_boxes
+        type: bounding_box/class_labels
+        value:
+          '1': class_1
+      image_7_wandb_delimeter_pred_boxes:
+        key: image_7_wandb_delimeter_pred_boxes
+        type: bounding_box/class_labels
+        value:
+          '1': class_1
+      image_7_wandb_delimeter_proposal_boxes:
+        key: image_7_wandb_delimeter_proposal_boxes
+        type: bounding_box/class_labels
+        value:
+          '1': class_1
+      image_8_wandb_delimeter_pred_boxes:
+        key: image_8_wandb_delimeter_pred_boxes
+        type: bounding_box/class_labels
+        value:
+          '1': class_1
+      image_8_wandb_delimeter_proposal_boxes:
+        key: image_8_wandb_delimeter_proposal_boxes
+        type: bounding_box/class_labels
+        value:
+          '1': class_1
+    cli_version: 0.13.9
+    framework: torch
+    is_jupyter_run: false
+    is_kaggle_kernel: false
+    python_version: 3.10.9
+    start_time: 1674168212.324466
+    t:
+      1:
+      - 1
+      - 41
+      - 43
+      - 49
+      - 55
+      - 63
+      2:
+      - 1
+      - 41
+      - 43
+      - 49
+      - 55
+      - 63
+      3:
+      - 23
+      4: 3.10.9
+      5: 0.13.9
+      8:
+      - 5
