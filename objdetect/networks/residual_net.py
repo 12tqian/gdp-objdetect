@@ -87,8 +87,6 @@ class ResidualBlock(nn.Module):
         F_x = torch.cat([self.feature_proj(F), self.input_proj(x)], dim=-1)
         t = self.map_t(F_x)
 
-        beg_mean = x.mean()
-
         if self.use_difference:
             x = x - t
         else:
@@ -96,7 +94,6 @@ class ResidualBlock(nn.Module):
         if self.include_scaling:
             s = self.map_s(F_x)
             x = x * torch.exp(-s)
-        # print(x.mean() / beg_mean)
         return x
 
 

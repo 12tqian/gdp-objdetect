@@ -22,9 +22,7 @@ class BoxDistanceLoss(nn.Module):
         # TODO: add lambda
         proposals = torch.stack([bi["proposal_boxes"] for bi in batched_inputs])
         preds = torch.stack([bi["pred_boxes"] for bi in batched_inputs])
-        assert torch.isfinite(proposals).all()
-        assert torch.isfinite(preds).all()
-        distances = (proposals - preds).square().sum(-1) # TODO: fuck this
+        distances = (proposals - preds).square().sum(-1).sqrt() # TODO: fuck this
         for bi, d in zip(batched_inputs, distances):
             if not torch.isfinite(d).all():
                 print(d)
@@ -63,9 +61,8 @@ class BoxProjectionLoss(nn.Module):
         gt_truth = torch.zeros(
             [N, max_boxes, 4],
             dtype=batched_inputs[0]["instances"].gt_boxes.tensor.dtype,
-            device=device,
-        )
-        masks = torch.zeros([N, max_boxes], dtype=torch.bool, device=device)
+        ).to(device)
+        masks = torch.zeros([N, max_boxes], dtype=torch.bool).to(device)
 
         for i in range(N):
             data = batched_inputs[i]

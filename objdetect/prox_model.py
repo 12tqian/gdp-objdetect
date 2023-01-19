@@ -11,12 +11,12 @@ from detectron2.modeling import (
     Backbone,
     detector_postprocess,
 )
-from detectron2.structures import ImageList, Instances
+from detectron2.structures import ImageList, Instances, Boxes
 from detectron2.utils.events import get_event_storage
 from detectron2.utils.logger import log_first_n
 from torch import nn
 
-from .utils.box_utils import box_cxcywh_to_xyxy, box_xyxy_to_cxcywh
+from .utils.box_utils import box_cxcywh_to_xyxy, box_xyxy_to_cxcywh, box_clamp_01
 
 from .registry import (
     PROPOSAL_REGISTRY,
@@ -145,6 +145,42 @@ class ProxModel(nn.Module):
     def _move_to_current_device(self, x):
         return move_device_like(x, self.pixel_mean)
 
+    def move_to_device(self, batched_inputs):
+        for bi in batched_inputs:
+            for key in bi:
+                if isinstance(bi[key], (torch.Tensor, Instances)):
+                    bi[key] = bi[key].to(self.device)
+
+    def normalize_boxes(self, batched_inputs):
+        for bi in batched_inputs:
+            # bad scaling
+            h, w = bi["image"].shape[-2:]
+            scale = torch.Tensor([w, h, w, h]).to(bi["proposal_boxes"].device)
+            bi["proposal_boxes"] = box_clamp_01(
+                box_xyxy_to_cxcywh(bi["proposal_boxes"]) / scale
+            )  # TODO: sus scaling
+            # bi["proposal_boxes"] = box_xyxy_to_cxcywh(bi["proposal_boxes"]) / scale # TODO: sus scaling
+            # assert bi["proposal_boxes"].max() <= 1
+            if "instances" in bi:
+                bi["instances"].gt_boxes.tensor = (
+                    box_xyxy_to_cxcywh(bi["instances"].gt_boxes.tensor) / scale
+                )
+            if "pred_boxes" in bi:
+                bi["pred_boxes"] = box_xyxy_to_cxcywh(bi["pred_boxes"]) / scale
+
+    def denormalize_boxes(self, batched_inputs):
+        for bi in batched_inputs:
+            # bad scaling
+            h, w = bi["image"].shape[-2:]
+            scale = torch.Tensor([w, h, w, h]).to(bi["proposal_boxes"].device)
+            bi["proposal_boxes"] = box_cxcywh_to_xyxy(bi["proposal_boxes"]) * scale
+            if "instances" in bi:
+                bi["instances"].gt_boxes.tensor = (
+                    box_cxcywh_to_xyxy(bi["instances"].gt_boxes.tensor) * scale
+                )
+            if "pred_boxes" in bi:
+                bi["pred_boxes"] = box_cxcywh_to_xyxy(bi["pred_boxes"]) * scale
+
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
         """
         Args:
@@ -164,19 +200,6 @@ class ProxModel(nn.Module):
                 "pred_boxes", "pred_classes", "scores", "pred_masks", "pred_keypoints"
         """
 
-        for bi in batched_inputs:
-            for key in bi:
-                if isinstance(bi[key], (torch.Tensor, Instances)):
-                    bi[key] = bi[key].to(self.device)
-
-            # bad scaling
-            h, w = bi["image"].shape[-2:]
-            scale = torch.Tensor([w, h, w, h], device=bi["proposal_boxes"].device)
-            bi["proposal_boxes"] = box_xyxy_to_cxcywh(bi["proposal_boxes"]) / scale
-            bi["instances"].gt_boxes.tensor = (
-                box_xyxy_to_cxcywh(bi["instances"].gt_boxes.tensor) / scale
-            )
-
         if not self.training:
             return self.inference(batched_inputs)
 
@@ -186,24 +209,20 @@ class ProxModel(nn.Module):
                 self.train_num_proposals, batched_inputs
             )
 
+        self.move_to_device(batched_inputs)
+
+        self.normalize_boxes(batched_inputs)
+
         batched_inputs = self.encoder(batched_inputs)
 
         results = self.network(batched_inputs)
 
-        proposal_boxes = [x["proposal_boxes"] for x in batched_inputs]
+        proposal_boxes = torch.stack([x["proposal_boxes"] for x in batched_inputs])
 
-        proposal_boxes = torch.stack(proposal_boxes)
         results = self.detection_loss(results)
         results = self.transport_loss(results)
 
-        for bi in batched_inputs:
-            # bad scaling
-            h, w = bi["image"].shape[-2:]
-            scale = torch.Tensor([w, h, w, h], device=bi["proposal_boxes"].device)
-            bi["proposal_boxes"] = box_cxcywh_to_xyxy(bi["proposal_boxes"]) * scale
-            bi["instances"].gt_boxes.tensor = (
-                box_cxcywh_to_xyxy(bi["instances"].gt_boxes.tensor) * scale
-            )
+        self.denormalize_boxes(batched_inputs)
 
         # visualization requires lists, not tensors
 
@@ -236,10 +255,15 @@ class ProxModel(nn.Module):
             batched_inputs = self.inference_proposal_generator(
                 self.inference_num_proposals, batched_inputs
             )
+        self.move_to_device(batched_inputs)
 
         for _ in range(repetitions):
+            self.normalize_boxes(batched_inputs)
+
             batched_inputs = self.encoder(batched_inputs)
-            results = self.network(batched_inputs)
+            batched_inputs = self.network(batched_inputs)
+
+            self.denormalize_boxes(batched_inputs)
 
             for input in batched_inputs:
                 input["proposal_boxes"] = input["pred_boxes"]
@@ -248,22 +272,25 @@ class ProxModel(nn.Module):
             assert (
                 not torch.jit.is_scripting()
             ), "Scripting is not supported for postprocess."
-            return ProxModel._postprocess(results, batched_inputs)
+            return ProxModel.postprocess(batched_inputs)
 
-        return results
+        return batched_inputs
 
     @staticmethod
-    def _postprocess(instances, batched_inputs: List[Dict[str, torch.Tensor]]):
+    def postprocess(batched_inputs: List[Dict[str, torch.Tensor]]):
         """
         Rescale the output instances to the target size.
         """
         # note: private function; subject to changes
         processed_results = []
-        for results_per_image, input_per_image in zip(instances, batched_inputs):
-            image_size = input_per_image["image"].shape[-2:]
-            height = input_per_image.get("height", image_size[0])
-            width = input_per_image.get("width", image_size[1])
-            r = detector_postprocess(results_per_image, height, width)
+        for bi in batched_inputs:
+            image_size = bi["image"].shape[-2:]
+            height = bi.get("height", image_size[0])
+            width = bi.get("width", image_size[1])
+            # breakpoint()
+            bi["instances"] = Instances(image_size)
+            bi["instances"].pred_boxes = Boxes(bi["pred_boxes"])
+            r = detector_postprocess(bi["instances"], height, width)
             processed_results.append({"instances": r})
         return processed_results
 

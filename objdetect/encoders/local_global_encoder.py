@@ -147,7 +147,7 @@ class LocalGlobalEncoder(nn.Module):
             # bad scaling
             boxes = (
                 box_cxcywh_to_xyxy(
-                    box_clamp_01(bi["proposal_boxes"])
+                    box_clamp_01(bi["proposal_boxes"]) # TODO: maybe not necessary
                 )
                 * scale
             )

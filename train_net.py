@@ -140,6 +140,7 @@ def do_train(cfg, model, resume=False):
         + 1
     )
     max_iter = cfg.SOLVER.MAX_ITER
+    max_iter = 1
     num_horizon = cfg.MODEL.NUM_HORIZON
 
     periodic_checkpointer = PeriodicCheckpointer(
