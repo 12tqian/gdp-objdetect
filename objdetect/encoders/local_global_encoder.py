@@ -9,7 +9,7 @@ from detectron2.modeling.poolers import ROIPooler
 from detectron2.modeling import build_resnet_backbone
 from detectron2.modeling.backbone.fpn import build_resnet_fpn_backbone
 from detectron2.modeling.backbone import Backbone
-from detectron2.structures import Boxes, ImageList
+from detectron2.structures import Boxes, ImageList, Instances
 from detectron2.config import configurable
 from ..registry import ENCODER_REGISTRY
 from ..utils.box_utils import box_xyxy_to_cxcywh, box_clamp_01, box_cxcywh_to_xyxy
@@ -134,7 +134,7 @@ class LocalGlobalEncoder(nn.Module):
         )
         return box_pooler
 
-    def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
+    def forward(self, batched_inputs: List[Dict[str, torch.Tensor | Instances]]):
         images = self.preprocess_image(batched_inputs)
 
         batch_size = len(batched_inputs)
@@ -151,16 +151,10 @@ class LocalGlobalEncoder(nn.Module):
                 )
                 * scale
             )
-            # boxes = (
-            #     box_cxcywh_to_xyxy(
-            #         box_clamp_01(box_xyxy_to_cxcywh(bi["proposal_boxes"]) / scale)
-            #     )
-            #     * scale
-            # )
             proposal_boxes.append(Boxes(boxes))
 
         # following line of code assumes that each image in the batch has the same number of proposal_boxees
-        num_boxes_per_batch = len(batched_inputs[0]["proposal_boxes"])
+        num_proposals_per_image = len(batched_inputs[0]["proposal_boxes"])
 
         fpn_features_dict = self.local_backbone(images.tensor)
         global_features = self.global_backbone(images.tensor)["res5"]
@@ -171,11 +165,11 @@ class LocalGlobalEncoder(nn.Module):
         roi_features = self.box_pooler(fpn_features, proposal_boxes)
 
         roi_features = self.local_line_layers(roi_features).view(
-            batch_size, num_boxes_per_batch, -1
+            batch_size, num_proposals_per_image, -1
         )
         global_features = self.global_line_layers(global_features).view(
             batch_size, 1, -1
-        ).repeat(1, num_boxes_per_batch, 1)
+        ).repeat(1, num_proposals_per_image, 1)
 
         encoding = self.ffn(torch.cat((roi_features, global_features), dim=2))
         for input, item_encoding in zip(batched_inputs, encoding):
@@ -183,7 +177,7 @@ class LocalGlobalEncoder(nn.Module):
 
         return batched_inputs
 
-    def preprocess_image(self, batched_inputs):
+    def preprocess_image(self, batched_inputs: List[Dict[str, torch.Tensor | Instances]]):
         """
         Normalize, pad and batch the input images.
         """
