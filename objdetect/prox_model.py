@@ -190,8 +190,6 @@ class ProxModel(nn.Module):
                 "pred_boxes", "pred_classes", "scores", "pred_masks", "pred_keypoints"
         """
 
-        breakpoint()
-
         if not self.training:
             return self.inference(batched_inputs)
 
