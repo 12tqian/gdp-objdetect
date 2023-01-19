@@ -2,13 +2,11 @@ _BASE_: "base-prox.yaml"
 MODEL:
   # WEIGHTS: "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
   RESNETS:
-    DEPTH: 50
+    DEPTH: 50gig
     STRIDE_IN_1X1: False
 DATASETS:
-  # TRAIN: ("coco_2017_train",)
-  # TEST:  ("coco_2017_val",)
-  TRAIN: ("synthetic_train",)
-  TEST:  ("synthetic_val",)
+  TRAIN: ("coco_2017_train",)
+  TEST:  ("coco_2017_val",)
 SOLVER:
   STEPS: (350000, 420000)
   MAX_ITER: 450000
