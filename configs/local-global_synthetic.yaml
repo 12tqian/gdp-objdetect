@@ -1,0 +1,4 @@
+_BASE_: "local-global.yaml"
+DATASETS:
+  TRAIN: ("synthetic_train",)
+  TEST:  ("synthetic_val",)
