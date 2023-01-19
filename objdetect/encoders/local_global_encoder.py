@@ -144,12 +144,19 @@ class LocalGlobalEncoder(nn.Module):
             bi = batched_inputs[i]
             h, w = bi["image"].shape[-2:]
             scale = torch.Tensor([w, h, w, h]).to(bi["proposal_boxes"].device)
+            # bad scaling
             boxes = (
                 box_cxcywh_to_xyxy(
-                    box_clamp_01(box_xyxy_to_cxcywh(bi["proposal_boxes"]) / scale)
+                    box_clamp_01(bi["proposal_boxes"])
                 )
                 * scale
             )
+            # boxes = (
+            #     box_cxcywh_to_xyxy(
+            #         box_clamp_01(box_xyxy_to_cxcywh(bi["proposal_boxes"]) / scale)
+            #     )
+            #     * scale
+            # )
             proposal_boxes.append(Boxes(boxes))
 
         # following line of code assumes that each image in the batch has the same number of proposal_boxees
