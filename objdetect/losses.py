@@ -21,9 +21,9 @@ class BoxDistanceLoss(nn.Module):
 
     def forward(self, batched_inputs):
         # TODO: add lambda
-        proposals = torch.stack([bi["proposal_boxes"] for bi in batched_inputs])
-        preds = torch.stack([bi["pred_boxes"] for bi in batched_inputs])
-        distances = (proposals - preds).square().sum(-1)  # TODO: maybe
+        proposal_boxes = torch.stack([bi["proposal_boxes"] for bi in batched_inputs])
+        pred_boxes = torch.stack([bi["pred_boxes"] for bi in batched_inputs])
+        distances = (proposal_boxes - pred_boxes).square().sum(-1)  # TODO: maybe
         for bi, d in zip(batched_inputs, distances):
             assert torch.isfinite(d).all()
             if "loss" in bi:

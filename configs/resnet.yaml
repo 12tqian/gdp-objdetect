@@ -1,4 +1,4 @@
 _BASE_: "base-prox.yaml"
 MODEL:
   ENCODER:
-    NAME: LocalGlobalEncoder
+    NAME: ResnetEncoder
