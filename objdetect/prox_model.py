@@ -77,7 +77,7 @@ class ProxModel(nn.Module):
             assert (
                 input_format is not None
             ), "input_format is required for visualization!"
-        
+
         self.register_buffer(
             "pixel_mean", torch.tensor(pixel_mean).view(-1, 1, 1), False
         )
@@ -164,6 +164,19 @@ class ProxModel(nn.Module):
                 "pred_boxes", "pred_classes", "scores", "pred_masks", "pred_keypoints"
         """
 
+        for bi in batched_inputs:
+            for key in bi:
+                if isinstance(bi[key], (torch.Tensor, Instances)):
+                    bi[key] = bi[key].to(self.device)
+
+            # bad scaling
+            h, w = bi["image"].shape[-2:]
+            scale = torch.Tensor([w, h, w, h], device=bi["proposal_boxes"].device)
+            bi["proposal_boxes"] = box_xyxy_to_cxcywh(bi["proposal_boxes"]) / scale
+            bi["instances"].gt_boxes.tensor = (
+                box_xyxy_to_cxcywh(bi["instances"].gt_boxes.tensor) / scale
+            )
+
         if not self.training:
             return self.inference(batched_inputs)
 
@@ -173,40 +186,11 @@ class ProxModel(nn.Module):
                 self.train_num_proposals, batched_inputs
             )
 
-        for bi in batched_inputs:
-            for key in bi:
-                if isinstance(bi[key], (torch.Tensor, Instances)):
-                    bi[key] = bi[key].to(self.device)
-                        
-            # bad scaling
-            h, w = bi["image"].shape[-2:]
-            scale = torch.Tensor([w, h, w, h]).to(bi["proposal_boxes"].device)
-            bi["proposal_boxes"] = box_xyxy_to_cxcywh(bi["proposal_boxes"]) / scale
-            bi["instances"].gt_boxes.tensor = bi["instances"].gt_boxes.tensor / scale
+        batched_inputs = self.encoder(batched_inputs)
 
-
-        features = self.encoder(batched_inputs)
-            
-            
-        # for bi in features:
-        #     h, w = bi["image"].shape[-2:]
-        #     scale = torch.Tensor([w, h, w, h]).to(bi["proposal_boxes"].device)
-        #     bi["proposal_boxes"] = box_xyxy_to_cxcywh(bi["proposal_boxes"]) / scale
-
-        results = self.network(features)
-
-        # for bi in features:
-        #     h, w = bi["image"].shape[-2:]
-        #     scale = torch.Tensor([w, h, w, h]).to(bi["proposal_boxes"].device)
-        #     bi["proposal_boxes"] = box_cxcywh_to_xyxy(bi["proposal_boxes"]) * scale
+        results = self.network(batched_inputs)
 
         proposal_boxes = [x["proposal_boxes"] for x in batched_inputs]
-
-        # visualization requires lists, not tensors
-        if self.vis_period > 0:
-            storage = get_event_storage()
-            if storage.iter % self.vis_period == 0:
-                self.visualize_training(batched_inputs, proposal_boxes)
 
         proposal_boxes = torch.stack(proposal_boxes)
         results = self.detection_loss(results)
@@ -215,9 +199,18 @@ class ProxModel(nn.Module):
         for bi in batched_inputs:
             # bad scaling
             h, w = bi["image"].shape[-2:]
-            scale = torch.Tensor([w, h, w, h]).to(bi["proposal_boxes"].device)
-            bi["proposal_boxes"] = box_xyxy_to_cxcywh(bi["proposal_boxes"]) * scale
-            bi["instances"].gt_boxes.tensor = bi["instances"].gt_boxes.tensor * scale
+            scale = torch.Tensor([w, h, w, h], device=bi["proposal_boxes"].device)
+            bi["proposal_boxes"] = box_cxcywh_to_xyxy(bi["proposal_boxes"]) * scale
+            bi["instances"].gt_boxes.tensor = (
+                box_cxcywh_to_xyxy(bi["instances"].gt_boxes.tensor) * scale
+            )
+
+        # visualization requires lists, not tensors
+
+        if self.vis_period > 0:
+            storage = get_event_storage()
+            if storage.iter % self.vis_period == 0:
+                self.visualize_training(batched_inputs, proposal_boxes)
 
         return results
 
@@ -245,8 +238,8 @@ class ProxModel(nn.Module):
             )
 
         for _ in range(repetitions):
-            features = self.encoder(batched_inputs)
-            results = self.network(features)
+            batched_inputs = self.encoder(batched_inputs)
+            results = self.network(batched_inputs)
 
             for input in batched_inputs:
                 input["proposal_boxes"] = input["pred_boxes"]
