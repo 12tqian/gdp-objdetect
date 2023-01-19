@@ -12,6 +12,12 @@ def synthetic_train_function():
 
     return dataset
 
+def synthetic_val_function():
+    with open(f'/mnt/tcqian/danielxu/gdp-objdetect/datasets/synthetic_dataset/annotations/instances_val.json', 'r') as fp:
+        dataset = json.load(fp)
+
+    return dataset
+
 from detectron2.data import DatasetCatalog
 DatasetCatalog.register("synthetic_train", synthetic_train_function)
-
+DatasetCatalog.register("synthetic_val", synthetic_val_function)
