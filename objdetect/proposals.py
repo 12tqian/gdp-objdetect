@@ -53,7 +53,6 @@ class UniformRandomBoxes(nn.Module):
                 image_input["width"],
                 image_input["height"]]
             )
-
         return batched_inputs
 
 

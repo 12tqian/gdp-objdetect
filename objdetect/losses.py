@@ -9,7 +9,7 @@ from torch import nn
 class BoxDistanceLoss(nn.Module):
     @configurable
     def __init__(self, *, box_distance_type: int):
-        super(BoxDistanceLoss, self).__init__()
+        super().__init__()
         self.box_distance_type = box_distance_type
 
     @classmethod
@@ -22,8 +22,14 @@ class BoxDistanceLoss(nn.Module):
         # TODO: add lambda
         proposals = torch.stack([bi["proposal_boxes"] for bi in batched_inputs])
         preds = torch.stack([bi["pred_boxes"] for bi in batched_inputs])
+        assert torch.isfinite(proposals).all()
+        assert torch.isfinite(preds).all()
         distances = (proposals - preds).square().sum(-1) # TODO: fuck this
         for bi, d in zip(batched_inputs, distances):
+            if not torch.isfinite(d).all():
+                print(d)
+                print(preds, proposals)
+            assert torch.isfinite(d).all()
             if "loss" in bi:
                 bi["loss"] = bi["loss"] + d
             else:
@@ -35,7 +41,7 @@ class BoxDistanceLoss(nn.Module):
 class BoxProjectionLoss(nn.Module):
     @configurable
     def __init__(self):
-        super(BoxProjectionLoss, self).__init__()
+        super().__init__()
 
     @classmethod
     def from_config(cls, cfg):
@@ -85,6 +91,7 @@ class BoxProjectionLoss(nn.Module):
         loss = torch.where(masks_gathered, loss, torch.zeros_like(loss))
 
         for bi, lo in zip(batched_inputs, loss):
+            assert torch.isfinite(lo).all()
             if "loss" in bi:
                 bi["loss"] = bi["loss"] + lo
             else:

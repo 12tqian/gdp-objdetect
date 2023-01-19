@@ -168,6 +168,8 @@ def do_train(cfg, model, resume=False):
                 for item in data:
                     item["proposal_boxes"] = item["pred_boxes"].detach()
 
+            sum_loss = sum_loss.sum() # TODO: maybe sus
+
             assert torch.isfinite(sum_loss).all()
 
             if comm.is_main_process():

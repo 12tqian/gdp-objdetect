@@ -171,7 +171,6 @@ class LocalGlobalEncoder(nn.Module):
         ).repeat(1, num_boxes_per_batch, 1)
 
         encoding = self.ffn(torch.cat((roi_features, global_features), dim=2))
-
         for input, item_encoding in zip(batched_inputs, encoding):
             input["encoding"] = item_encoding
 

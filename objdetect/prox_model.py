@@ -16,6 +16,8 @@ from detectron2.utils.events import get_event_storage
 from detectron2.utils.logger import log_first_n
 from torch import nn
 
+from .utils.box_utils import box_cxcywh_to_xyxy, box_xyxy_to_cxcywh
+
 from .registry import (
     PROPOSAL_REGISTRY,
     ENCODER_REGISTRY,
@@ -178,7 +180,19 @@ class ProxModel(nn.Module):
                 
 
         features = self.encoder(batched_inputs)
+            
+            
+        for bi in features:
+            h, w = bi["image"].shape[-2:]
+            scale = torch.Tensor([w, h, w, h]).to(bi["proposal_boxes"].device)
+            bi["proposal_boxes"] = box_xyxy_to_cxcywh(bi["proposal_boxes"]) / scale
+
         results = self.network(features)
+
+        for bi in features:
+            h, w = bi["image"].shape[-2:]
+            scale = torch.Tensor([w, h, w, h]).to(bi["proposal_boxes"].device)
+            bi["proposal_boxes"] = box_cxcywh_to_xyxy(bi["proposal_boxes"]) * scale
 
         proposal_boxes = [x["proposal_boxes"] for x in batched_inputs]
 

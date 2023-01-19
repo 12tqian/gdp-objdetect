@@ -75,7 +75,6 @@ class ResidualBlock(nn.Module):
                 nn.Linear(hidden_size, input_dim),
                 nn.Hardtanh(min_val=-2, max_val=2),
             )
-
         self.map_t = nn.Sequential(
             nn.Linear(input_proj_dim + feature_proj_dim, hidden_size),
             nn.ReLU(),
@@ -88,6 +87,8 @@ class ResidualBlock(nn.Module):
         F_x = torch.cat([self.feature_proj(F), self.input_proj(x)], dim=-1)
         t = self.map_t(F_x)
 
+        beg_mean = x.mean()
+
         if self.use_difference:
             x = x - t
         else:
@@ -95,6 +96,7 @@ class ResidualBlock(nn.Module):
         if self.include_scaling:
             s = self.map_s(F_x)
             x = x * torch.exp(-s)
+        print(x.mean() / beg_mean)
         return x
 
 
@@ -162,7 +164,6 @@ class ResidualNet(nn.Module):
         """
         F = torch.stack([input["encoding"] for input in batched_inputs])
         x = torch.stack([input["proposal_boxes"] for input in batched_inputs])
-
         if F.ndim == 2:
             B = x.shape[1]
             F = F.unsqueeze(1).expand(-1, B, -1)
