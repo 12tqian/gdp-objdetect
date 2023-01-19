@@ -168,7 +168,7 @@ def do_train(cfg, model, resume=False):
                 for item in data:
                     item["proposal_boxes"] = item["pred_boxes"].detach()
 
-            sum_loss = sum_loss.sum() # TODO: maybe sus
+            sum_loss = sum_loss.mean() / len(data) / num_horizon # TODO: maybe sus, divide by batch size 
 
             assert torch.isfinite(sum_loss).all()
 

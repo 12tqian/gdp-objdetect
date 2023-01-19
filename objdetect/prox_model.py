@@ -177,22 +177,28 @@ class ProxModel(nn.Module):
             for key in bi:
                 if isinstance(bi[key], (torch.Tensor, Instances)):
                     bi[key] = bi[key].to(self.device)
-                
+                        
+            # bad scaling
+            h, w = bi["image"].shape[-2:]
+            scale = torch.Tensor([w, h, w, h]).to(bi["proposal_boxes"].device)
+            bi["proposal_boxes"] = box_xyxy_to_cxcywh(bi["proposal_boxes"]) / scale
+            bi["instances"].gt_boxes.tensor = bi["instances"].gt_boxes.tensor / scale
+
 
         features = self.encoder(batched_inputs)
             
             
-        for bi in features:
-            h, w = bi["image"].shape[-2:]
-            scale = torch.Tensor([w, h, w, h]).to(bi["proposal_boxes"].device)
-            bi["proposal_boxes"] = box_xyxy_to_cxcywh(bi["proposal_boxes"]) / scale
+        # for bi in features:
+        #     h, w = bi["image"].shape[-2:]
+        #     scale = torch.Tensor([w, h, w, h]).to(bi["proposal_boxes"].device)
+        #     bi["proposal_boxes"] = box_xyxy_to_cxcywh(bi["proposal_boxes"]) / scale
 
         results = self.network(features)
 
-        for bi in features:
-            h, w = bi["image"].shape[-2:]
-            scale = torch.Tensor([w, h, w, h]).to(bi["proposal_boxes"].device)
-            bi["proposal_boxes"] = box_cxcywh_to_xyxy(bi["proposal_boxes"]) * scale
+        # for bi in features:
+        #     h, w = bi["image"].shape[-2:]
+        #     scale = torch.Tensor([w, h, w, h]).to(bi["proposal_boxes"].device)
+        #     bi["proposal_boxes"] = box_cxcywh_to_xyxy(bi["proposal_boxes"]) * scale
 
         proposal_boxes = [x["proposal_boxes"] for x in batched_inputs]
 
@@ -205,6 +211,13 @@ class ProxModel(nn.Module):
         proposal_boxes = torch.stack(proposal_boxes)
         results = self.detection_loss(results)
         results = self.transport_loss(results)
+
+        for bi in batched_inputs:
+            # bad scaling
+            h, w = bi["image"].shape[-2:]
+            scale = torch.Tensor([w, h, w, h]).to(bi["proposal_boxes"].device)
+            bi["proposal_boxes"] = box_xyxy_to_cxcywh(bi["proposal_boxes"]) * scale
+            bi["instances"].gt_boxes.tensor = bi["instances"].gt_boxes.tensor * scale
 
         return results
 

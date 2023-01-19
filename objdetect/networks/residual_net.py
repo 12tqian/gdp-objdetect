@@ -96,7 +96,7 @@ class ResidualBlock(nn.Module):
         if self.include_scaling:
             s = self.map_s(F_x)
             x = x * torch.exp(-s)
-        print(x.mean() / beg_mean)
+        # print(x.mean() / beg_mean)
         return x
 
 
