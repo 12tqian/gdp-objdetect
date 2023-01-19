@@ -105,24 +105,12 @@ class ProxModel(nn.Module):
             else train_proposal_generator
         )
         # TODO: do later
-        encoder = ENCODER_REGISTRY.get(cfg.MODEL.ENCODER.NAME)(
-            cfg
-            # , ShapeSpec(channels=len(cfg.MODEL.PIXEL_MEAN))
-        )
+        encoder = ENCODER_REGISTRY.get(cfg.MODEL.ENCODER.NAME)(cfg)
 
-        network = NETWORK_REGISTRY.get(cfg.MODEL.NETWORK.NAME)(
-            cfg
-            # , encoder.output_shape
-        )
+        network = NETWORK_REGISTRY.get(cfg.MODEL.NETWORK.NAME)(cfg)
 
-        transport_loss = LOSS_REGISTRY.get(cfg.MODEL.TRANSPORT_LOSS.NAME)(
-            cfg
-            # , network.output_shape
-        )
-        detection_loss = LOSS_REGISTRY.get(cfg.MODEL.DETECTION_LOSS.NAME)(
-            cfg
-            # , network.output_shape
-        )
+        transport_loss = LOSS_REGISTRY.get(cfg.MODEL.TRANSPORT_LOSS.NAME)(cfg)
+        detection_loss = LOSS_REGISTRY.get(cfg.MODEL.DETECTION_LOSS.NAME)(cfg)
 
         return {
             "train_proposal_generator": train_proposal_generator,
@@ -146,22 +134,22 @@ class ProxModel(nn.Module):
     def _move_to_current_device(self, x):
         return move_device_like(x, self.pixel_mean)
 
-    def move_to_device(self, batched_inputs):
+    def move_to_device(self, batched_inputs: List[Dict[str, torch.Tensor | Instances]]):
         for bi in batched_inputs:
             for key in bi:
                 if isinstance(bi[key], (torch.Tensor, Instances)):
                     bi[key] = bi[key].to(self.device)
 
-    def normalize_boxes(self, batched_inputs):
+    def normalize_boxes(
+        self, batched_inputs: List[Dict[str, torch.Tensor | Instances]]
+    ):
         for bi in batched_inputs:
             # bad scaling
             h, w = bi["image"].shape[-2:]
             scale = torch.Tensor([w, h, w, h]).to(bi["proposal_boxes"].device)
             bi["proposal_boxes"] = box_clamp_01(
                 box_xyxy_to_cxcywh(bi["proposal_boxes"]) / scale
-            )  # TODO: sus scaling
-            # bi["proposal_boxes"] = box_xyxy_to_cxcywh(bi["proposal_boxes"]) / scale # TODO: sus scaling
-            # assert bi["proposal_boxes"].max() <= 1
+            )
             if "instances" in bi:
                 bi["instances"].gt_boxes.tensor = (
                     box_xyxy_to_cxcywh(bi["instances"].gt_boxes.tensor) / scale
@@ -169,7 +157,9 @@ class ProxModel(nn.Module):
             if "pred_boxes" in bi:
                 bi["pred_boxes"] = box_xyxy_to_cxcywh(bi["pred_boxes"]) / scale
 
-    def denormalize_boxes(self, batched_inputs):
+    def denormalize_boxes(
+        self, batched_inputs: List[Dict[str, torch.Tensor | Instances]]
+    ):
         for bi in batched_inputs:
             # bad scaling
             h, w = bi["image"].shape[-2:]
@@ -182,7 +172,7 @@ class ProxModel(nn.Module):
             if "pred_boxes" in bi:
                 bi["pred_boxes"] = box_cxcywh_to_xyxy(bi["pred_boxes"]) * scale
 
-    def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
+    def forward(self, batched_inputs: List[Dict[str, torch.Tensor | Instances]]):
         """
         Args:
             batched_inputs: a list, batched outputs of :class:`DatasetMapper` .
@@ -218,8 +208,6 @@ class ProxModel(nn.Module):
 
         results = self.network(batched_inputs)
 
-        proposal_boxes = torch.stack([x["proposal_boxes"] for x in batched_inputs])
-
         results = self.detection_loss(results)
         results = self.transport_loss(results)
 
@@ -232,13 +220,15 @@ class ProxModel(nn.Module):
         if self.vis_period > 0:
             storage = get_event_storage()
             if storage.iter % self.vis_period == 0:
+                proposal_boxes = [x["proposal_boxes"] for x in batched_inputs]
+
                 self.visualize_training(batched_inputs, proposal_boxes)
 
         return results
 
     def inference(
         self,
-        batched_inputs: List[Dict[str, torch.Tensor]],
+        batched_inputs: List[Dict[str, torch.Tensor | Instances]],
         repetitions=1,
         do_postprocess: bool = True,
     ):
@@ -280,7 +270,7 @@ class ProxModel(nn.Module):
         return batched_inputs
 
     @staticmethod
-    def postprocess(batched_inputs: List[Dict[str, torch.Tensor]]):
+    def postprocess(batched_inputs: List[Dict[str, torch.Tensor | Instances]]):
         """
         Rescale the output instances to the target size.
         """

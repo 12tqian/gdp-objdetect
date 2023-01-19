@@ -10,6 +10,7 @@ output/
 # Distribution / packaging
 .Python
 build/
+wandb/
 develop-eggs/
 dist/
 downloads/

@@ -7,6 +7,7 @@ MODEL:
     NAME: "build_resnet_fpn_backbone"
   RESNETS:
     OUT_FEATURES: ["res2", "res3", "res4", "res5"]
+    STRIDE_IN_1X1: False
   FPN:
     IN_FEATURES: ["res2", "res3", "res4", "res5"]
   ROI_HEADS:
@@ -31,7 +32,7 @@ MODEL:
     NAME: "BoxProjectionLoss"
   NUM_HORIZON: 4
 SOLVER:
-  IMS_PER_BATCH: 2
+  IMS_PER_BATCH: 4
   BASE_LR: 0.000025
   # STEPS: (210000, 250000)
   # MAX_ITER: 270000
@@ -45,13 +46,15 @@ SOLVER:
   #   CLIP_TYPE: "full_model"
   #   CLIP_VALUE: 1.0
   #   NORM_TYPE: 2.0
+  STEPS: (350000, 420000)
+  MAX_ITER: 450000
   AMP:
     ENABLED: True
 SEED: 40244023
 INPUT:
   MIN_SIZE_TRAIN: (480, 512, 544, 576, 608, 640, 672, 704, 736, 768, 800)
   CROP:
-    ENABLED: False
+    ENABLED: True
     TYPE: "absolute_range"
     SIZE: (384, 600)
   FORMAT: "RGB"
@@ -61,3 +64,6 @@ DATALOADER:
   FILTER_EMPTY_ANNOTATIONS: False
   NUM_WORKERS: 4
 VERSION: 2
+DATASETS:
+  TRAIN: ("coco_2017_train",)
+  TEST: ("coco_2017_val",)

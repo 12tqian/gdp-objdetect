@@ -1,5 +1,6 @@
 from .dataset_mapper import ProxModelDatasetMapper
 from .config import add_proxmodel_cfg
+from .encoders.resnet_encoder import ResnetEncoder
 from .encoders.local_global_encoder import LocalGlobalEncoder
 from .prox_model import ProxModel
 from .proposals import UniformRandomBoxes
