@@ -8,3 +8,4 @@ from .losses import (
     BoxProjectionLoss
 )
 from .networks.residual_net import ResidualNet
+from .datasets.synthetic_dataset import synthetic_train_function
