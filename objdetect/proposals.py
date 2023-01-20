@@ -63,7 +63,7 @@ class NoisedGroundTruth(nn.Module):
     def __init__(self, *, num_proposal_boxes: int, gaussian_error: float, use_t: bool):
         super().__init__()
         self.num_proposal_boxes = num_proposal_boxes
-        self.gaussian_error = gaussian_error
+        self.gaussian_error = gaussian_error  # default should be 0.1??
         self.use_t = use_t
 
     @classmethod
@@ -71,7 +71,7 @@ class NoisedGroundTruth(nn.Module):
         return {
             "num_proposal_boxes": cfg.PROPOSAL_GENERATOR.NUM_PROPOSALS,
             "gaussian_error": cfg.PROPOSAL_GENERATOR.GAUSSIAN_ERROR,
-            "use_t": cfg.PROPOSAL_GENERATOR.USE_TIME
+            "use_t": cfg.PROPOSAL_GENERATOR.USE_TIME,
         }
 
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
@@ -82,6 +82,14 @@ class NoisedGroundTruth(nn.Module):
 
         for bi in batched_inputs:
             gt_boxes = bi["instances"].gt_boxes.tensor
+            scale = torch.Tensor(
+                [
+                    bi["width"],
+                    bi["height"],
+                    bi["width"],
+                    bi["height"],
+                ]
+            )
 
             if len(gt_boxes) > 0:
                 sampled_indices = torch.randint(
@@ -113,17 +121,21 @@ class NoisedGroundTruth(nn.Module):
                     )
 
                 prior = torch.concat(
-                    (prior, corrupted_sampled_ground_truth_boxes[None, ...]), dim=0
+                    (prior, scale * corrupted_sampled_ground_truth_boxes[None, ...]), dim=0
                 )
             else:
                 prior_t = torch.concat(
-                    (prior_t, torch.full((1, self.num_proposal_boxes), 1000)),
+                    (prior_t, scale * torch.full((1, self.num_proposal_boxes), 1000)),
                     dim=0,
                 )
                 prior = torch.concat(
-                    (prior, torch.randn([1, self.num_proposal_boxes, 4]))
+                    (prior, scale * torch.randn([1, self.num_proposal_boxes, 4]))
                 )
         if self.use_t:
-            return (prior, prior_t)
+            batched_inputs["proposal_boxes"] = prior
+            # TODO: 
+            # do something with prior_t, this has t attached
+            # maybe at some point add in the gt box index here
         else:
-            return prior
+            batched_inputs["proposal_boxes"] = prior
+        return batched_inputs
