@@ -28,10 +28,10 @@ def log_batched_inputs_wandb(batched_inputs: List[Dict[str, torch.Tensor]]):
     global images
     for bi in batched_inputs:
         boxes_input = {}
-        if "proposal_boxes" in bi:
-            boxes_input["proposal_boxes"] = convert_box_tensor_wandb(bi["proposal_boxes"])
-        if "pred_boxes" in bi:
-            boxes_input["pred_boxes"] = convert_box_tensor_wandb(bi["pred_boxes"])
+        # if "proposal_boxes" in bi:
+        #     boxes_input["proposal_boxes"] = convert_box_tensor_wandb(bi["proposal_boxes"])
+        # if "pred_boxes" in bi:
+        #     boxes_input["pred_boxes"] = convert_box_tensor_wandb(bi["pred_boxes"])
         if "instances" in bi:
             boxes_input["gt_boxes"] = convert_box_tensor_wandb(bi["instances"].gt_boxes.tensor)
         img = wandb.Image(bi["image"].float(), boxes=boxes_input)
