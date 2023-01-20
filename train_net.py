@@ -158,7 +158,8 @@ def do_train(cfg, model, resume=False):
             for h in range(num_horizon):
                 data = model(data)
 
-                log_batched_inputs_wandb(data)
+                if comm.is_main_process():
+                    log_batched_inputs_wandb(data)
 
                 for item in data:
                     sum_loss = sum_loss + item["loss"]
