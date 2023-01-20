@@ -9,21 +9,31 @@ from detectron2.structures import Instances
 @LOSS_REGISTRY.register()
 class BoxDistanceLoss(nn.Module):
     @configurable
-    def __init__(self, *, box_distance_type: int):
+    def __init__(self, *, box_distance_type: int, transport_lambda: float):
         super().__init__()
         self.box_distance_type = box_distance_type
+        self.transport_lambda = transport_lambda
 
     @classmethod
     def from_config(cls, cfg):
         return {
             "box_distance_type": cfg.MODEL.LOSS.BOX_DISTANCE_TYPE,
+            "transport_lambda": cfg.MODEL.LOSS.TRANSPORT_LAMBDA
         }
 
     def forward(self, batched_inputs):
-        # TODO: add lambda
         proposal_boxes = torch.stack([bi["proposal_boxes"] for bi in batched_inputs])
         pred_boxes = torch.stack([bi["pred_boxes"] for bi in batched_inputs])
-        distances = (proposal_boxes - pred_boxes).square().sum(-1)  # TODO: maybe
+
+        if self.box_distance_type == "l1": 
+            distances = (proposal_boxes - pred_boxes).abs().sum(-1)  # TODO: maybe        
+        elif self.box_distance_type == "l2":
+            distances = (proposal_boxes - pred_boxes).square().sum(-1)  # TODO: maybe
+        else:
+            raise ValueError(f"Unsupported cfg.MODEL.LOSS.BOX_DISTANCE_TYPE {self.box_distance_type}")
+
+        distances = distances * self.transport_lambda
+
         for bi, d in zip(batched_inputs, distances):
             assert torch.isfinite(d).all()
             if "loss" in bi:
@@ -96,4 +106,5 @@ class BoxProjectionLoss(nn.Module):
                 bi["loss"] = bi["loss"] + lo
             else:
                 bi["loss"] = lo
+                
         return batched_inputs

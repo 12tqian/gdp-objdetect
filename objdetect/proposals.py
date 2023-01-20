@@ -12,8 +12,7 @@ from .utils.box_utils import box_cxcywh_to_xyxy
 class UniformRandomBoxes(nn.Module):
     @configurable
     def __init__(self, *, is_inf_proposal: bool):
-        super(UniformRandomBoxes, self).__init__()
-        pass
+        super().__init__()
 
     @classmethod
     def from_config(cls, cfg, is_inf_proposal: bool):

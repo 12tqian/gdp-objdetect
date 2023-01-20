@@ -107,7 +107,7 @@ class ProxModelDatasetMapper:
         dataset_dict["image"] = torch.as_tensor(
             np.ascontiguousarray(image.transpose(2, 0, 1))
         )
-        # TODO: add lingxiao augmentations laterw
+        # TODO: add lingxiao augmentations later
         if not self.is_train:
             # USER: Modify this if you want to keep them for some reason.
             dataset_dict.pop("annotations", None)
