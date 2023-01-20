@@ -54,6 +54,7 @@ from detectron2.evaluation import (
 )
 from detectron2.modeling import build_model
 from detectron2.solver import build_lr_scheduler, build_optimizer
+from detectron2.utils.events import EventStorage
 from objdetect.utils.wandb_utils import log_batched_inputs_wandb
 from torch.nn.parallel import DistributedDataParallel
 
@@ -139,7 +140,6 @@ def do_train(cfg, model, resume=False):
         checkpointer, cfg.SOLVER.CHECKPOINT_PERIOD, max_iter=max_iter
     )
 
-
     # compared to "train_net.py", we do not support accurate timing and
     # precise BN here, because they are not trivial to implement in a small training loop
     mapper = ProxModelDatasetMapper(cfg, is_train=True)
@@ -151,7 +151,7 @@ def do_train(cfg, model, resume=False):
         for h in range(num_horizon):
             data = model(data)
 
-            if comm.is_main_process():
+            if comm.is_main_process() and iteration % 100 == 0:
                 log_batched_inputs_wandb(data)
 
             for item in data:
@@ -169,6 +169,7 @@ def do_train(cfg, model, resume=False):
         optimizer.zero_grad()
         sum_loss.backward()
         optimizer.step()
+        lr = optimizer.param_groups[0]["lr"]
         scheduler.step()
 
         # if (
@@ -179,6 +180,10 @@ def do_train(cfg, model, resume=False):
         #     do_test(cfg, model)
         #     # Compared to "train_net.py", the test results are not dumped to EventStorage
         #     comm.synchronize()
+        if iteration - start_iter > 5 and (
+            (iteration + 1) % 20 == 0 or iteration == max_iter - 1
+        ):
+            print(f"iter: {iteration}   loss: {sum_loss}   lr: {lr}")
 
         periodic_checkpointer.step(iteration)
 
