@@ -179,14 +179,12 @@ def do_train(cfg, model, resume=False):
                     "loss": sum_loss.item(),
                     file_name: image_list,
                     "iteration": iteration,
-                    "image_list": image_list
                 })
             else:
                  wandb.log({
                     "loss": sum_loss.item(),
                     # "epoch": iteration // len(data_loader.dataset)+ 1,
                     "iteration": iteration,
-                    "image_list": image_list
                 })
 
         assert torch.isfinite(sum_loss).all()
