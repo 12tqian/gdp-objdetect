@@ -153,7 +153,7 @@ def do_train(cfg, model, resume=False):
         sum_loss = torch.zeros(1).to(model.device)  # TODO: hacky
         batch_size = len(data)
         log_idx = torch.randint(batch_size, (1,)).item()
-        do_log = (iteration % cfg.SOLVER.WANDB.LOG_FREQUENCY == 0)
+        do_log = iteration % cfg.SOLVER.WANDB.LOG_FREQUENCY == 0
         image_list = []
         name = ""
         for h in range(num_horizon):
@@ -163,29 +163,33 @@ def do_train(cfg, model, resume=False):
             if do_log:
                 image_list.append(get_logged_batched_input_wandb(data[log_idx]))
                 name = data[log_idx]["file_name"]
-            
+
             for item in data:
                 item["proposal_boxes"] = item["pred_boxes"].detach()
 
         sum_loss = (
             sum_loss.mean() / len(data) / num_horizon
         )  # TODO: maybe sus, divide by batch size
-       
+
         if comm.is_main_process() and do_log:
             if do_log:
                 lst = name.split("/")
                 file_name = lst[-3] + "/" + lst[-2] + "/" + lst[-1]
-                wandb.log({
-                    "loss": sum_loss.item(),
-                    file_name: image_list,
-                    "iteration": iteration,
-                })
+                wandb.log(
+                    {
+                        "loss": sum_loss.item(),
+                        file_name: image_list,
+                        "iteration": iteration,
+                    }
+                )
             else:
-                 wandb.log({
-                    "loss": sum_loss.item(),
-                    # "epoch": iteration // len(data_loader.dataset)+ 1,
-                    "iteration": iteration,
-                })
+                wandb.log(
+                    {
+                        "loss": sum_loss.item(),
+                        # "epoch": iteration // len(data_loader.dataset)+ 1,
+                        "iteration": iteration,
+                    }
+                )
 
         assert torch.isfinite(sum_loss).all()
 

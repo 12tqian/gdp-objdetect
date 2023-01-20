@@ -91,7 +91,7 @@ class ProxModelDatasetMapper:
 
         if self.crop_gen is None:
             image, transforms = T.apply_transform_gens(self.tfm_gens, image)
-        else: # this should not be used
+        else:  # this should not be used
             if np.random.rand() > 0.5:
                 image, transforms = T.apply_transform_gens(self.tfm_gens, image)
             else:

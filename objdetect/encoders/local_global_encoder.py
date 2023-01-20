@@ -147,7 +147,7 @@ class LocalGlobalEncoder(nn.Module):
             # bad scaling
             boxes = (
                 box_cxcywh_to_xyxy(
-                    box_clamp_01(bi["proposal_boxes"]) # TODO: maybe not necessary
+                    box_clamp_01(bi["proposal_boxes"])  # TODO: maybe not necessary
                 )
                 * scale
             )
@@ -167,9 +167,11 @@ class LocalGlobalEncoder(nn.Module):
         roi_features = self.local_line_layers(roi_features).view(
             batch_size, num_proposals_per_image, -1
         )
-        global_features = self.global_line_layers(global_features).view(
-            batch_size, 1, -1
-        ).repeat(1, num_proposals_per_image, 1)
+        global_features = (
+            self.global_line_layers(global_features)
+            .view(batch_size, 1, -1)
+            .repeat(1, num_proposals_per_image, 1)
+        )
 
         encoding = self.ffn(torch.cat((roi_features, global_features), dim=2))
         for input, item_encoding in zip(batched_inputs, encoding):
@@ -177,7 +179,9 @@ class LocalGlobalEncoder(nn.Module):
 
         return batched_inputs
 
-    def preprocess_image(self, batched_inputs: List[Dict[str, torch.Tensor | Instances]]):
+    def preprocess_image(
+        self, batched_inputs: List[Dict[str, torch.Tensor | Instances]]
+    ):
         """
         Normalize, pad and batch the input images.
         """

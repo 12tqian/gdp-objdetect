@@ -150,7 +150,7 @@ class ResidualNet(nn.Module):
             "num_block": cfg.MODEL.NETWORK.NUM_BLOCK,
             "hidden_size": cfg.MODEL.NETWORK.HIDDEN_SIZE,
             "feature_proj_dim": cfg.MODEL.NETWORK.FEATURE_PROJ_DIM,
-            "input_proj_dim": cfg.MODEL.NETWORK.INPUT_PROJ_DIM
+            "input_proj_dim": cfg.MODEL.NETWORK.INPUT_PROJ_DIM,
         }
 
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):

@@ -13,9 +13,9 @@ import torchvision
 # print(backbone.output_shape())
 
 cfg = get_cfg()
-    # cfg.merge_from_file(
-    #     model_zoo.get_config_file("COCO-Detection/retinanet_R_50_FPN_1x.yaml")
-    # )
+# cfg.merge_from_file(
+#     model_zoo.get_config_file("COCO-Detection/retinanet_R_50_FPN_1x.yaml")
+# )
 cfg.merge_from_file(
     model_zoo.get_config_file("COCO-Detection/faster_rcnn_R_50_FPN_1x.yaml")
 )

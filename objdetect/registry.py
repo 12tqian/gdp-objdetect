@@ -49,5 +49,3 @@ The registered object must be a callable that accepts two arguments:
 
 Registered object must return instance of :class:`nn.Module`.
 """
-
-

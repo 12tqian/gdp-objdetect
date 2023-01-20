@@ -66,7 +66,7 @@ class ResnetEncoder(nn.Module):
         self.path_manager.register_handler(HTTPURLHandler())
 
         weights = self.path_manager.get_local_path(weights)
-        
+
         with open(weights, "rb") as f:
             state_dict = pickle.load(f, encoding="latin1")["model"]
         for k in list(state_dict.keys()):
@@ -77,7 +77,7 @@ class ResnetEncoder(nn.Module):
                 )
             if not isinstance(v, torch.Tensor):
                 state_dict[k] = torch.from_numpy(v)
-    
+
         state_dict.pop("stem.fc.weight")
         state_dict.pop("stem.fc.bias")
         self.global_backbone.load_state_dict(state_dict)

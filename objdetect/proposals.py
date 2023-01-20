@@ -48,10 +48,12 @@ class UniformRandomBoxes(nn.Module):
             proposal_boxes = torch.rand(num_proposal_boxes, 4)
             proposal_boxes = box_cxcywh_to_xyxy(proposal_boxes)
             image_input["proposal_boxes"] = proposal_boxes * torch.Tensor(
-                [image_input["width"],
-                image_input["height"],
-                image_input["width"],
-                image_input["height"]]
+                [
+                    image_input["width"],
+                    image_input["height"],
+                    image_input["width"],
+                    image_input["height"],
+                ]
             )
         return batched_inputs
 
