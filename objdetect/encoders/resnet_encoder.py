@@ -98,20 +98,6 @@ class ResnetEncoder(nn.Module):
         images = self.preprocess_image(batched_inputs)
 
         batch_size = len(batched_inputs)
-        proposal_boxes = []
-        for i in range(batch_size):
-            # making boxes valid
-            bi = batched_inputs[i]
-            h, w = bi["image"].shape[-2:]
-            scale = torch.Tensor([w, h, w, h]).to(bi["proposal_boxes"].device)
-            # bad scaling
-            boxes = (
-                box_cxcywh_to_xyxy(
-                    box_clamp_01(bi["proposal_boxes"])  # TODO: maybe not necessary
-                )
-                * scale
-            )
-            proposal_boxes.append(Boxes(boxes))
 
         # following line of code assumes that each image in the batch has the same number of proposal_boxees
         num_proposals_per_image = len(batched_inputs[0]["proposal_boxes"])

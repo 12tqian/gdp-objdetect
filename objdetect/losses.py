@@ -26,9 +26,9 @@ class BoxDistanceLoss(nn.Module):
         pred_boxes = torch.stack([bi["pred_boxes"] for bi in batched_inputs])
 
         if self.box_distance_type == "l1": 
-            distances = (proposal_boxes - pred_boxes).abs().sum(-1)  # TODO: maybe        
+            distances = (proposal_boxes - pred_boxes).abs().sum(-1)        
         elif self.box_distance_type == "l2":
-            distances = (proposal_boxes - pred_boxes).square().sum(-1)  # TODO: maybe
+            distances = (proposal_boxes - pred_boxes).square().sum(-1)  
         else:
             raise ValueError(f"Unsupported cfg.MODEL.LOSS.BOX_DISTANCE_TYPE {self.box_distance_type}")
 
@@ -106,5 +106,5 @@ class BoxProjectionLoss(nn.Module):
                 bi["loss"] = bi["loss"] + lo
             else:
                 bi["loss"] = lo
-                
+
         return batched_inputs
