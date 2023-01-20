@@ -5,7 +5,7 @@ MODEL:
     NAME: "UniformRandomBoxes"
     NUM_PROPOSALS: 100
 SOLVER:
-  IMS_PER_BATCH: 4
+  IMS_PER_BATCH: 2
   BASE_LR: 0.001
 INPUT:
   CROP:
@@ -13,3 +13,5 @@ INPUT:
 DATASETS:
   TRAIN: ("coco_2017_train_1000small",)
   TEST: ("coco_2017_val",)
+
+OUTPUT_DIR: "./output/debug"

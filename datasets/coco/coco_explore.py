@@ -9,6 +9,9 @@ fp = open(f'/mnt/tcqian/danielxu/gdp-objdetect/datasets/coco/annotations/instanc
 dataset = json.load(fp)
 
 print(dataset.keys())
+# dataset.pop('categories')
+# dataset.pop('info')
+# dataset.pop('licenses')
 
 print(len(dataset['images']))
 print(dataset['images'][5]['id'])

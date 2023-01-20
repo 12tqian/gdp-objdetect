@@ -8,6 +8,8 @@ def add_proxmodel_cfg(cfg):
     cfg.MODEL.TRAIN_PROPOSAL_GENERATOR = CN()
     cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.NAME = "UniformRandomBoxes"
     cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.NUM_PROPOSALS = 100
+    cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.GAUSSIAN_ERROR = 0.1
+    cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.USE_TIME = False
 
     cfg.MODEL.NUM_HORIZON = 8
 
@@ -39,6 +41,7 @@ def add_proxmodel_cfg(cfg):
     cfg.MODEL.PROPOSAL_GENERATOR.NAME = "UniformRandomBoxes"
     cfg.MODEL.PROPOSAL_GENERATOR.NUM_PROPOSALS = 50
 
+
     cfg.MODEL.LOSS = CN()
     cfg.MODEL.LOSS.BOX_DISTANCE_TYPE = "l2"
     cfg.MODEL.LOSS.TRANSPORT_LAMBDA = 1.0
@@ -46,7 +49,6 @@ def add_proxmodel_cfg(cfg):
     # logging stuff
     cfg.DATASETS.TRAIN_COUNT = 100
     cfg.SOLVER.WANDB = CN()
-    cfg.SOLVER.WANDB.ENABLED = True
     cfg.SOLVER.WANDB.LOG_FREQUENCY = 20
 
     # Optimizer.
