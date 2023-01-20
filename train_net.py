@@ -55,7 +55,6 @@ from detectron2.evaluation import (
 )
 from detectron2.modeling import build_model
 from detectron2.solver import build_lr_scheduler, build_optimizer
-from detectron2.utils.events import EventStorage
 from objdetect.utils.wandb_utils import log_batched_inputs_wandb
 from torch.nn.parallel import DistributedDataParallel
 
@@ -150,55 +149,47 @@ def do_train(cfg, model, resume=False):
     mapper = ProxModelDatasetMapper(cfg, is_train=True)
     data_loader = build_detection_train_loader(cfg, mapper=mapper)
     logger.info("Starting training from iteration {}".format(start_iter))
-    with EventStorage(start_iter) as storage:
-        for data, iteration in zip(data_loader, range(start_iter, max_iter)):
-            storage.iter = iteration
+    for data, iteration in zip(data_loader, range(start_iter, max_iter)):
 
-            sum_loss = torch.zeros(1).to(model.device)  # TODO: hacky
-            for h in range(num_horizon):
-                data = model(data)
-
-                if comm.is_main_process():
-                    log_batched_inputs_wandb(data)
-
-                for item in data:
-                    sum_loss = sum_loss + item["loss"]
-
-                for item in data:
-                    item["proposal_boxes"] = item["pred_boxes"].detach()
-
-            sum_loss = (
-                sum_loss.mean() / len(data) / num_horizon
-            )  # TODO: maybe sus, divide by batch size
-
-            assert torch.isfinite(sum_loss).all()
+        sum_loss = torch.zeros(1).to(model.device)  # TODO: hacky
+        for h in range(num_horizon):
+            data = model(data)
 
             if comm.is_main_process():
-                storage.put_scalars(total_loss=sum_loss)
+                log_batched_inputs_wandb(data)
 
-            optimizer.zero_grad()
-            sum_loss.backward()
-            optimizer.step()
-            storage.put_scalar(
-                "lr", optimizer.param_groups[0]["lr"], smoothing_hint=False
-            )
-            scheduler.step()
+            for item in data:
+                sum_loss = sum_loss + item["loss"]
 
-            # if (
-            #     cfg.TEST.EVAL_PERIOD > 0
-            #     and (iteration + 1) % cfg.TEST.EVAL_PERIOD == 0
-            #     and iteration != max_iter - 1
-            # ):
-            #     do_test(cfg, model)
-            #     # Compared to "train_net.py", the test results are not dumped to EventStorage
-            #     comm.synchronize()
+            for item in data:
+                item["proposal_boxes"] = item["pred_boxes"].detach()
 
-            if iteration - start_iter > 5 and (
-                (iteration + 1) % 20 == 0 or iteration == max_iter - 1
-            ):
-                for writer in writers:
-                    writer.write()
-            periodic_checkpointer.step(iteration)
+        sum_loss = (
+            sum_loss.mean() / len(data) / num_horizon
+        )  # TODO: maybe sus, divide by batch size
+
+        assert torch.isfinite(sum_loss).all()
+
+        optimizer.zero_grad()
+        sum_loss.backward()
+        optimizer.step()
+        scheduler.step()
+
+        # if (
+        #     cfg.TEST.EVAL_PERIOD > 0
+        #     and (iteration + 1) % cfg.TEST.EVAL_PERIOD == 0
+        #     and iteration != max_iter - 1
+        # ):
+        #     do_test(cfg, model)
+        #     # Compared to "train_net.py", the test results are not dumped to EventStorage
+        #     comm.synchronize()
+
+        if iteration - start_iter > 5 and (
+            (iteration + 1) % 20 == 0 or iteration == max_iter - 1
+        ):
+            for writer in writers:
+                writer.write()
+        periodic_checkpointer.step(iteration)
 
 
 def setup(args):
