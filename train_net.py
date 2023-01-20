@@ -148,19 +148,21 @@ def do_train(cfg, model, resume=False):
     logger.info("Starting training from iteration {}".format(start_iter))
     # single_iteration = cfg.SOLVER.NUM_GPUS * cfg.SOLVER.IMS_PER_BATCH
     # iterations_for_one_epoch = cfg.DATASETS.TRAIN_COUNT / single_iteration
-    batch_size = cfg.SOLVER.IMS_PER_BATCH
     for data, iteration in zip(data_loader, range(start_iter, max_iter)):
 
         sum_loss = torch.zeros(1).to(model.device)  # TODO: hacky
+        batch_size = len(data)
         log_idx = torch.randint(batch_size, (1,)).item()
         do_log = (iteration % cfg.SOLVER.WANDB.LOG_FREQUENCY == 0)
         image_list = []
+        name = ""
         for h in range(num_horizon):
             data = model(data)
             for item in data:
                 sum_loss = sum_loss + item["loss"]
             if do_log:
                 image_list.append(get_logged_batched_input_wandb(data[log_idx]))
+                name = data[log_idx]["file_name"]
             
             for item in data:
                 item["proposal_boxes"] = item["pred_boxes"].detach()
@@ -168,8 +170,19 @@ def do_train(cfg, model, resume=False):
         sum_loss = (
             sum_loss.mean() / len(data) / num_horizon
         )  # TODO: maybe sus, divide by batch size
+       
         if comm.is_main_process() and do_log:
-            wandb.log({
+            if do_log:
+                lst = name.split("/")
+                file_name = lst[-3] + "/" + lst[-2] + "/" + lst[-1]
+                wandb.log({
+                    "loss": sum_loss.item(),
+                    file_name: image_list,
+                    "iteration": iteration,
+                    "image_list": image_list
+                })
+            else:
+                 wandb.log({
                     "loss": sum_loss.item(),
                     # "epoch": iteration // len(data_loader.dataset)+ 1,
                     "iteration": iteration,
@@ -195,7 +208,7 @@ def do_train(cfg, model, resume=False):
         if iteration - start_iter > 5 and (
             (iteration + 1) % 20 == 0 or iteration == max_iter - 1
         ):
-            print(f"iter: {iteration}   loss: {sum_loss}   lr: {lr}")
+            logger.info(f"iter: {iteration}   loss: {sum_loss}   lr: {lr}")
 
         periodic_checkpointer.step(iteration)
 
