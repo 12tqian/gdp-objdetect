@@ -2,6 +2,7 @@ import json
 import random
 from PIL import Image, ImageDraw
 from detectron2.structures.boxes import BoxMode
+import numpy as np
 
 # https://github.com/facebookresearch/detectron2/blob/cbbc1ce26473cb2a5cc8f58e8ada9ae14cb41052/docs/tutorials/datasets.md
 # describes how to make your dataset and register it!
@@ -81,8 +82,8 @@ def create_image(image_id, num_objects, dataset_path, width=640, height=640):
         object_dict["bbox_mode"] = BoxMode.XYXY_ABS
         object_dict["category_id"] = 0
         image_dict["annotations"].append(object_dict)
-
-        draw.ellipse((x1, y1, x2, y2), fill="blue", outline="blue")  # x1,y1,x2,y2
+        color=tuple(np.random.choice(range(256), size=3))
+        draw.ellipse((x1, y1, x2, y2), fill=color, outline=color)  # x1,y1,x2,y2
 
     image = image.convert("RGB")
     image.save(
@@ -101,5 +102,5 @@ def save_dataset(dataset_dict, instances_path):
 
 if __name__ == "__main__":
     create_dataset(
-        dataset_train_size=10, dataset_val_size=10, dataset_name="synthetic_dataset"
+        dataset_train_size=1000, dataset_val_size=1000, dataset_name="synthetic_dataset"
     )
