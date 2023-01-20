@@ -25,6 +25,7 @@ def convert_box_tensor_wandb(boxes: torch.Tensor):
 
 images = 0
 def log_batched_inputs_wandb(batched_inputs: List[Dict[str, torch.Tensor]]):
+    return
     global images
     for bi in batched_inputs:
         boxes_input = {}
@@ -35,5 +36,5 @@ def log_batched_inputs_wandb(batched_inputs: List[Dict[str, torch.Tensor]]):
         if "instances" in bi:
             boxes_input["gt_boxes"] = convert_box_tensor_wandb(bi["instances"].gt_boxes.tensor)
         img = wandb.Image(bi["image"].float(), boxes=boxes_input)
-        wandb.log({f"image_{images}": img})
+        # wandb.log({f"image_{images}": img})
         images += 1

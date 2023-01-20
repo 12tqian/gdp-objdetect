@@ -2,3 +2,6 @@ _BASE_: "base-prox.yaml"
 MODEL:
   ENCODER:
     NAME: LocalGlobalEncoder
+SOLVER:
+  IMS_PER_BATCH: 6
+  BASE_LR: 0.001
