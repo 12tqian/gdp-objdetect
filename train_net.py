@@ -1,8 +1,4 @@
-from detectron2.modeling import (
-    META_ARCH_REGISTRY,
-    Backbone,
-    detector_postprocess,
-)
+from detectron2.modeling import META_ARCH_REGISTRY, Backbone, detector_postprocess
 
 #!/usr/bin/env python
 # Copyright (c) Facebook, Inc. and its affiliates.
@@ -28,10 +24,10 @@ It also includes fewer abstraction, therefore is easier to add custom logic.
 import logging
 import os
 from collections import OrderedDict
-import torch
-from torch.nn.parallel import DistributedDataParallel
 
 import detectron2.utils.comm as comm
+import torch
+import wandb
 from detectron2.checkpoint import DetectionCheckpointer, PeriodicCheckpointer
 from detectron2.config import get_cfg
 from detectron2.data import (
@@ -60,8 +56,8 @@ from detectron2.evaluation import (
 from detectron2.modeling import build_model
 from detectron2.solver import build_lr_scheduler, build_optimizer
 from detectron2.utils.events import EventStorage
-
-import wandb
+from objdetect.utils.wandb_utils import log_batched_inputs_wandb
+from torch.nn.parallel import DistributedDataParallel
 
 logger = logging.getLogger("detectron2")
 
@@ -136,10 +132,7 @@ def do_train(cfg, model, resume=False):
         model, cfg.OUTPUT_DIR, optimizer=optimizer, scheduler=scheduler
     )
     start_iter = (
-        checkpointer.resume_or_load(cfg.MODEL.WEIGHTS, resume=resume).get(
-            "iteration", -1
-        )
-        + 1
+        checkpointer.resume_or_load(None, resume=resume).get("iteration", -1) + 1
     )
     max_iter = cfg.SOLVER.MAX_ITER
     num_horizon = cfg.MODEL.NUM_HORIZON
@@ -164,6 +157,9 @@ def do_train(cfg, model, resume=False):
             sum_loss = torch.zeros(1).to(model.device)  # TODO: hacky
             for h in range(num_horizon):
                 data = model(data)
+
+                log_batched_inputs_wandb(data)
+
                 for item in data:
                     sum_loss = sum_loss + item["loss"]
 
@@ -220,8 +216,10 @@ def setup(args):
 
 
 def main(args):
-    wandb.init(project="gdp-objdetect")
     cfg = setup(args)
+
+    if comm.is_main_process():
+        wandb.init(project="gdp-objdetect", config=cfg)
 
     model = build_model(cfg)
     logger.info("Model:\n{}".format(model))
