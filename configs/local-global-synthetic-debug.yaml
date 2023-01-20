@@ -10,3 +10,6 @@ SOLVER:
 INPUT:
   CROP:
     ENABLED: True
+DATASETS:
+  TRAIN: ("coco_2017_train_1000small",)
+  TEST: ("coco_2017_val",)
