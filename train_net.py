@@ -38,7 +38,6 @@ from detectron2.data import (
 from detectron2.engine import (
     default_argument_parser,
     default_setup,
-    default_writers,
     launch,
 )
 from detectron2.evaluation import (
@@ -140,9 +139,6 @@ def do_train(cfg, model, resume=False):
         checkpointer, cfg.SOLVER.CHECKPOINT_PERIOD, max_iter=max_iter
     )
 
-    writers = (
-        default_writers(cfg.OUTPUT_DIR, max_iter) if comm.is_main_process() else []
-    )
 
     # compared to "train_net.py", we do not support accurate timing and
     # precise BN here, because they are not trivial to implement in a small training loop
@@ -184,11 +180,6 @@ def do_train(cfg, model, resume=False):
         #     # Compared to "train_net.py", the test results are not dumped to EventStorage
         #     comm.synchronize()
 
-        if iteration - start_iter > 5 and (
-            (iteration + 1) % 20 == 0 or iteration == max_iter - 1
-        ):
-            for writer in writers:
-                writer.write()
         periodic_checkpointer.step(iteration)
 
 
