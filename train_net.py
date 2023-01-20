@@ -55,7 +55,7 @@ from detectron2.evaluation import (
 )
 from detectron2.modeling import build_model
 from detectron2.solver import build_lr_scheduler, build_optimizer
-from objdetect.utils.wandb_utils import log_batched_inputs_wandb
+from objdetect.utils.wandb_utils import get_logged_batched_input_wandb
 from torch.nn.parallel import DistributedDataParallel
 
 logger = logging.getLogger("detectron2")
@@ -149,24 +149,35 @@ def do_train(cfg, model, resume=False):
     mapper = ProxModelDatasetMapper(cfg, is_train=True)
     data_loader = build_detection_train_loader(cfg, mapper=mapper)
     logger.info("Starting training from iteration {}".format(start_iter))
+    # single_iteration = cfg.SOLVER.NUM_GPUS * cfg.SOLVER.IMS_PER_BATCH
+    # iterations_for_one_epoch = cfg.DATASETS.TRAIN_COUNT / single_iteration
+    batch_size = cfg.SOLVER.IMS_PER_BATCH
     for data, iteration in zip(data_loader, range(start_iter, max_iter)):
 
         sum_loss = torch.zeros(1).to(model.device)  # TODO: hacky
+        log_idx = torch.randint(batch_size, (1,)).item()
+        do_log = (iteration % cfg.SOLVER.WANDB.LOG_FREQUENCY == 0)
+        image_list = []
         for h in range(num_horizon):
             data = model(data)
-
-            if comm.is_main_process():
-                log_batched_inputs_wandb(data)
-
             for item in data:
                 sum_loss = sum_loss + item["loss"]
-
+            if do_log:
+                image_list.append(get_logged_batched_input_wandb(data[log_idx]))
+            
             for item in data:
                 item["proposal_boxes"] = item["pred_boxes"].detach()
 
         sum_loss = (
             sum_loss.mean() / len(data) / num_horizon
         )  # TODO: maybe sus, divide by batch size
+        if comm.is_main_process() and do_log:
+            wandb.log({
+                    "loss": sum_loss.item(),
+                    # "epoch": iteration // len(data_loader.dataset)+ 1,
+                    "iteration": iteration,
+                    "image_list": image_list
+                })
 
         assert torch.isfinite(sum_loss).all()
 

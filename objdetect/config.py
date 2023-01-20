@@ -47,7 +47,11 @@ def add_proxmodel_cfg(cfg):
     cfg.MODEL.LOSS.BOX_DISTANCE_TYPE = 1
 
     # logging stuff
-    cfg.SOLVER.WANDB = True
+    cfg.DATASETS.TRAIN_COUNT = 100
+    cfg.SOLVER.WANDB = CN()
+    cfg.SOLVER.WANDB.ENABLED = True
+    cfg.SOLVER.WANDB.LOG_FREQUENCY = 20
+
 
     # Optimizer.
     # cfg.MODEL.SOLVER.OPTIMIZER = "ADAMW"

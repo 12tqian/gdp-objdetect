@@ -1,4 +1,5 @@
 _BASE_: "local-global.yaml"
 DATASETS:
   TRAIN: ("synthetic_train",)
+  TRAIN_COUNT: 10
   TEST:  ("synthetic_val",)
