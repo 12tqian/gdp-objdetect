@@ -2,13 +2,10 @@ _BASE_: "base-prox.yaml"
 MODEL:
   ENCODER:
     NAME: ResnetEncoder
-  NUM_HORIZON: 5
+  NUM_HORIZON: 6
 SOLVER:
   IMS_PER_BATCH: 4
-  BASE_LR: 0.001
+  BASE_LR: 0.0001
   CHECKPOINT_PERIOD: 1000
 
-DATASETS:
-  TRAIN_COUNT: 100
-
-OUTPUT_DIR: "./output/resnet"
+OUTPUT_DIR: "./output/resnet-2"
