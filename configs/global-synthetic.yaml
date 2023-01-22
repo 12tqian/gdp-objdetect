@@ -1,0 +1,20 @@
+_BASE_: "local-global.yaml"
+MODEL:
+  NUM_HORIZON: 4
+  TRAIN_PROPOSAL_GENERATOR:
+    NAME: "UniformRandomBoxes"
+    NUM_PROPOSALS: 100
+  ENCODER:
+    NAME: ResnetEncoder
+SOLVER:
+  IMS_PER_BATCH: 2
+  BASE_LR: 0.0001
+INPUT:
+  CROP:
+    ENABLED: True
+
+DATASETS:
+ TRAIN: ("synthetic_train_1",)
+ TEST:  ("synthetic_val_1",)
+
+OUTPUT_DIR: "./output/global_synthetic"

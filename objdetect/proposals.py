@@ -98,11 +98,10 @@ class NoisedGroundTruth(nn.Module):
                 )  # B,
                 bi["original_gt"] = sampled_indices
 
-                sampled_gt_boxes = gt_boxes[sampled_indices]  # Bx4
+                sampled_gt_boxes = gt_boxes[sampled_indices] / scale # Bx4
 
                 if self.use_t:
                     t = torch.randint(1000, size=(num_proposal_boxes,))  # B,
-
                     alpha_cumprod = (1 - self.gaussian_error) ** t
                     alpha_cumprod = alpha_cumprod.unsqueeze(  # Bx1
                         -1
@@ -132,9 +131,15 @@ class NoisedGroundTruth(nn.Module):
 
             if self.use_t:
                 bi["proposal_boxes"] = prior
-                # TODO:
+                bi["prior_t"] = prior_t
+                # TODO: 
                 # do something with prior_t, this has t attached
                 # maybe at some point add in the gt box index here
             else:
                 bi["proposal_boxes"] = prior
+            # TODO: The boxes generated like this are often have negative coords so perhaps we can make a slightly better initial sampling cuz the box
+            # should be at least reasonable close to being able to fit in the screen, not all over the place.
+            # print("first proposal_box", prior[0])
+            # print("second proposal_box", prior[1])
+            # print("50th proposal_box", prior[50])
         return batched_inputs

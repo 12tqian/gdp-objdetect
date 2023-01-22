@@ -102,5 +102,5 @@ def save_dataset(dataset_dict, instances_path):
 
 if __name__ == "__main__":
     create_dataset(
-        dataset_train_size=1000, dataset_val_size=1000, dataset_name="synthetic_dataset"
+        dataset_train_size=10, dataset_val_size=10, dataset_name="synthetic_dataset_10"
     )
