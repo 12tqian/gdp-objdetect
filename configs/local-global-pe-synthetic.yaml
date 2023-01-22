@@ -4,8 +4,6 @@ MODEL:
   TRAIN_PROPOSAL_GENERATOR:
     NAME: "UniformRandomBoxes"
     NUM_PROPOSALS: 100
-  ENCODER:
-    NAME: "LocalGlobalEncoderPE"
 SOLVER:
   IMS_PER_BATCH: 8
   BASE_LR: 0.001
@@ -16,6 +14,6 @@ DATASETS:
  TRAIN: ("synthetic_train_10",)
  TEST:  ("synthetic_val_10",)
  AUGMENTATION:
-  ENABLED: True
+  ENABLED: False
 
-OUTPUT_DIR: "./output/local-global-pe-synthetic-debug"
+OUTPUT_DIR: "./output/local-global-pe-synthetic"

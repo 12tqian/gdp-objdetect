@@ -207,11 +207,38 @@ class LocalGlobalEncoderPE(nn.Module):
             proposal_boxes.append(Boxes(boxes))
 
         # following line of code assumes that each image in the batch has the same number of proposal_boxees
+    
         num_proposals_per_image = len(batched_inputs[0]["proposal_boxes"])
 
-        fpn_features_dict = self.local_backbone(images.tensor)
-        global_features = self.global_backbone(images.tensor)["res5"]
+        first_input = batched_inputs[0]
+        if "cache" in first_input:
+            fpn_features_dict, global_features = first_input["cache"]
+        else:
+            fpn_features_dict = self.local_backbone(images.tensor)
+            global_features = self.global_backbone(images.tensor)["res5"]
+            global_features = self.global_backbone(images.tensor)["res5"]
+            global_features = self.conv_global(global_features)
+            B, _, H, W = global_features.shape
 
+            global_features = global_features.permute(0, 2, 3, 1)
+            if self.pe_kind != "none":
+                pos = torch.cat(
+                    [
+                        self.col_embed[:W].unsqueeze(0).repeat(H, 1, 1),
+                        self.row_embed[:H].unsqueeze(1).repeat(1, W, 1),
+                    ],
+                    -1,
+                )  # H'xW'xD
+                pos = pos.unsqueeze(0).repeat(B, 1, 1, 1)  # BxH'xW'xD
+                global_features = torch.cat([global_features, pos], -1)  # BxH'xW'x2D
+            global_features = self.ffn_global(global_features)
+            global_features = global_features.permute(0, 3, 1, 2)
+            global_features = self.pool_global(global_features)
+            global_features = global_features.view(batch_size, 1, -1).repeat(
+                1, num_proposals_per_image, 1
+            ) 
+            first_input["cache"] = (fpn_features_dict, global_features)
+    
         fpn_features = [
             fpn_features_dict[feature_name] for feature_name in self.fpn_in_features
         ]
@@ -228,26 +255,7 @@ class LocalGlobalEncoderPE(nn.Module):
         roi_features = roi_features.permute(0, 1, 4, 2, 3)
         roi_features = self.pool_local(roi_features).squeeze(4).squeeze(3)
 
-        global_features = self.conv_global(global_features)
-        B, _, H, W = global_features.shape
-
-        global_features = global_features.permute(0, 2, 3, 1)
-        if self.pe_kind != "none":
-            pos = torch.cat(
-                [
-                    self.col_embed[:W].unsqueeze(0).repeat(H, 1, 1),
-                    self.row_embed[:H].unsqueeze(1).repeat(1, W, 1),
-                ],
-                -1,
-            )  # H'xW'xD
-            pos = pos.unsqueeze(0).repeat(B, 1, 1, 1)  # BxH'xW'xD
-            global_features = torch.cat([global_features, pos], -1)  # BxH'xW'x2D
-        global_features = self.ffn_global(global_features)
-        global_features = global_features.permute(0, 3, 1, 2)
-        global_features = self.pool_global(global_features)
-        global_features = global_features.view(batch_size, 1, -1).repeat(
-            1, num_proposals_per_image, 1
-        )
+        
         encoding = self.ffn_both(torch.cat((roi_features, global_features), dim=2))
         for input, item_encoding in zip(batched_inputs, encoding):
             input["encoding"] = item_encoding

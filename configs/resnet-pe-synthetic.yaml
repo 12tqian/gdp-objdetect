@@ -3,13 +3,18 @@ MODEL:
   ENCODER:
     NAME: ResnetEncoderPE
   NUM_HORIZON: 5
+  LOSS:
+    TRANSPORT_LAMBDA: 8.0
 SOLVER:
-  IMS_PER_BATCH: 4
-  BASE_LR: 0.0001
+  IMS_PER_BATCH: 64
+  BASE_LR: 0.001
   CHECKPOINT_PERIOD: 1000
 
 DATASETS:
- TRAIN: ("synthetic_train_10",)
- TEST:  ("synthetic_val_10",)
+  TRAIN: ("synthetic_train_10",)
+  TEST:  ("synthetic_val_10",)
+  AUGMENTATION:  
+    ENABLED: False
+  
 
 OUTPUT_DIR: "./output/resnet-pe-1"
