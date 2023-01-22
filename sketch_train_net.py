@@ -1,39 +1,13 @@
-from detectron2.modeling import META_ARCH_REGISTRY, Backbone, detector_postprocess
-from accelerate import Accelerator
-from tqdm import tqdm
-from torch.profiler import profile, record_function, ProfilerActivity
-from contextlib import nullcontext
-
-from accelerate.utils import set_seed
-
-#!/usr/bin/env python
-# Copyright (c) Facebook, Inc. and its affiliates.
-"""
-Detectron2 training script with a plain training loop.
-
-This script reads a given config file and runs the training or evaluation.
-It is an entry point that is able to train standard models in detectron2.
-
-In order to let one script support training of many models,
-this script contains logic that are specific to these built-in models and therefore
-may not be suitable for your own project.
-For example, your research project perhaps only needs a single "evaluator".
-
-Therefore, we recommend you to use detectron2 as a library and take
-this file as an example of how to use the library.
-You may want to write your own script with your datasets and other customizations.
-
-Compared to "train_net.py", this script supports fewer default features.
-It also includes fewer abstraction, therefore is easier to add custom logic.
-"""
-
 import logging
 import os
 from collections import OrderedDict
+from contextlib import nullcontext
 
 import detectron2.utils.comm as comm
 import torch
 import wandb
+from accelerate import Accelerator
+from accelerate.utils import set_seed
 from detectron2.checkpoint import DetectionCheckpointer, PeriodicCheckpointer
 from detectron2.config import get_cfg
 from detectron2.data import (
@@ -41,16 +15,16 @@ from detectron2.data import (
     build_detection_test_loader,
     build_detection_train_loader,
 )
-from detectron2.engine import (
-    default_argument_parser,
-    default_setup,
+from detectron2.engine import default_argument_parser, default_setup
+from detectron2.modeling import (
+    META_ARCH_REGISTRY,
+    Backbone,
+    build_model,
+    detector_postprocess,
 )
-
-from detectron2.modeling import build_model
 from detectron2.solver import build_lr_scheduler, build_optimizer
-from detectron2.utils.events import EventStorage
-from objdetect.utils.wandb_utils import log_batched_inputs_wandb
-from torch.nn.parallel import DistributedDataParallel
+from torch.profiler import ProfilerActivity, profile, record_function
+from tqdm import tqdm
 
 logger = logging.getLogger("detectron2")
 
@@ -93,10 +67,14 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
     data_loader = build_detection_train_loader(cfg, mapper=mapper)
 
     # checkpoint
+    checkpointer = DetectionCheckpointer(
+        model, cfg.OUTPUT_DIR, optimizer=optimizer, scheduler=scheduler
+    )
+    start_iter = (
+        checkpointer.resume_or_load(None, resume=resume).get("iteration", -1) + 1
+    )
     checkpointer = PeriodicCheckpointer(
-        DetectionCheckpointer(
-            model, cfg.OUTPUT_DIR, optimizer=optimizer, scheduler=scheduler
-        ),
+        checkpointer,
         cfg.SOLVER.CHECKPOINT_PERIOD,
         max_iter=cfg.SOLVER.MAX_ITER,
     )
@@ -104,11 +82,7 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
     # there is some weird stuff with amp wrapping but that should not affect the model's state_dict
     # note: this will not work for deepspeed stage 3!
 
-    start_iter = (
-        checkpointer.resume_or_load(None, resume=resume).get("iteration", -1) + 1
-    )
-
-    logger.info("Starting training from iteration {}".format(start_iter))
+    logger.info(f"Starting training from iteration {start_iter}")
 
     model, optimizer, data_loader, scheduler = accelerator.prepare(
         model, optimizer, data_loader, scheduler
@@ -124,10 +98,11 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
             it_item, disable=not accelerator.is_main_process
         ):
             with accelerator.accumulate(model):
-                
+
                 # setup stuff for logging
-                log_images = step % cfg.SOLVER.WANDB.LOG_FREQUENCY == 0
+                log_images = cfg.SOLVER.WANDB.ENABLE and step % cfg.SOLVER.WANDB.LOG_FREQUENCY == 0
                 log_idx = torch.randint(len(batched_inputs), (1,)).item()
+                image_name = batched_inputs[log_idx]["file_name"]
                 logged_images = []
 
                 # horizons loop
@@ -138,9 +113,8 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
 
                     if log_images:
                         logged_images.append(
-                            get_logged_batched_input_wandb(data[log_idx])
+                            get_logged_batched_input_wandb(batched_inputs[log_idx])
                         )
-                        image_name = bi[log_idx]["file_name"]
 
                     for bi in batched_inputs:
                         sum_loss = sum_loss + bi["loss"]
@@ -153,30 +127,23 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
                 assert torch.isfinite(sum_loss).all()
 
                 if accelerator.is_main_process:
+                    if cfg.SOLVER.WANDB.ENABLE:
+                        log_dict = {
+                            "loss": sum_loss.item(),
+                            "iteration": step,
+                        }
 
-                    if log_images:
-                        abrv_image_name = "/".join(image_name.split("/")[-3:])
-                        wandb.log(
-                            {
-                                "loss": sum_loss.item(),
-                                abrv_image_name: logged_images,
-                                "iteration": step,
-                            }
-                        )
-                    else:
-                        wandb.log(
-                            {
-                                "loss": sum_loss.item(),
-                                "iteration": step,
-                            }
-                        )
+                        if log_images:
+                            image_file_name = "/".join(image_name.split("/")[-3:])
+
+                            log_dict[image_file_name] = logged_images
+
+                        wandb.log(log_dict)
 
                 accelerator.backward(sum_loss)
                 optimizer.step()
-
                 if not accelerator.optimizer_step_was_skipped:
                     scheduler.step()
-
                 optimizer.zero_grad()
 
                 if use_profile:
@@ -206,7 +173,10 @@ def main(args):
     model = build_model(cfg)
     accelerator = Accelerator()
 
-    do_train(cfg, model, accelerator)
+    if accelerator.is_main_process and cfg.SOLVER.WANDB.ENABLE:
+        wandb.init(project="gdp-objdetect", config=cfg)
+
+    do_train(cfg, model, accelerator, args.resume)
 
 
 if __name__ == "__main__":

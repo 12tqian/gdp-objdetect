@@ -46,11 +46,11 @@ def add_proxmodel_cfg(cfg):
     cfg.MODEL.LOSS.TRANSPORT_LAMBDA = 1.0
 
     # logging stuff
-    cfg.SOLVER.WANDB = False
     cfg.SOLVER.PROFILE = False
 
     cfg.DATASETS.TRAIN_COUNT = 100
     cfg.SOLVER.WANDB = CN()
+    cfg.SOLVER.WANDB.ENABLE = True
     cfg.SOLVER.WANDB.LOG_FREQUENCY = 20
 
     # Optimizer.
