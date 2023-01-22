@@ -144,11 +144,13 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
                 optimizer.step()
                 if not accelerator.optimizer_step_was_skipped:
                     scheduler.step()
+
+                checkpointer.step(step)
                 optimizer.zero_grad()
 
                 if use_profile:
                     profiler.step()
-
+                
     accelerator.wait_for_everyone()
     accelerator.end_training()
 
