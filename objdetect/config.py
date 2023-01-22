@@ -31,6 +31,9 @@ def add_proxmodel_cfg(cfg):
     cfg.MODEL.DETECTION_LOSS = CN()
     cfg.MODEL.DETECTION_LOSS.NAME = "BoxProjectionLoss"
 
+    cfg.MODEL.CLASSIFICATION_LOSS = CN()
+    cfg.MODEL.CLASSIFICATION_LOSS.NAME = "ClassificationLoss"
+
     cfg.MODEL.NETWORK.INPUT_DIM = 4
     cfg.MODEL.NETWORK.FEATURE_DIM = 256
     cfg.MODEL.NETWORK.NUM_BLOCK = 10
@@ -50,6 +53,8 @@ def add_proxmodel_cfg(cfg):
     cfg.SOLVER.PROFILE = False
 
     cfg.DATASETS.TRAIN_COUNT = 100
+    cfg.DATASETS.NUM_CLASSES = 80
+
     cfg.SOLVER.WANDB = CN()
     cfg.SOLVER.WANDB.ENABLE = True
     cfg.SOLVER.WANDB.LOG_FREQUENCY = 20

@@ -38,10 +38,12 @@ class ProxModel(nn.Module):
         train_num_proposals: int,
         inference_proposal_generator: Optional[nn.Module],
         inference_num_proposals: int,
+        num_classes: int,
         encoder: Backbone,
         network: nn.Module,
         transport_loss: nn.Module,
         detection_loss: nn.Module,
+        classification_loss: nn.Module,
         pixel_mean: Tuple[float],
         pixel_std: Tuple[float],
         input_format: Optional[str] = None,
@@ -61,10 +63,12 @@ class ProxModel(nn.Module):
         self.train_num_proposals = train_num_proposals
         self.inference_proposal_generator = inference_proposal_generator
         self.inference_num_proposals = inference_num_proposals
+        self.num_classes = num_classes
         self.encoder = encoder
         self.network = network
         self.transport_loss = transport_loss
         self.detection_loss = detection_loss
+        self.classification_loss = classification_loss
 
         self.input_format = input_format
         self.vis_period = vis_period
@@ -105,16 +109,19 @@ class ProxModel(nn.Module):
 
         transport_loss = LOSS_REGISTRY.get(cfg.MODEL.TRANSPORT_LOSS.NAME)(cfg)
         detection_loss = LOSS_REGISTRY.get(cfg.MODEL.DETECTION_LOSS.NAME)(cfg)
+        classification_loss = LOSS_REGISTRY.get(cfg.MODEL.CLASSIFICATION_LOSS.NAME)(cfg)
 
         return {
             "train_proposal_generator": train_proposal_generator,
             "train_num_proposals": cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.NUM_PROPOSALS,
             "inference_proposal_generator": inference_proposal_generator,
             "inference_num_proposals": cfg.MODEL.INFERENCE_PROPOSAL_GENERATOR.NUM_PROPOSALS,
+            "num_classes": cfg.DATASETS.NUM_CLASSES,
             "encoder": encoder,
             "network": network,
             "transport_loss": transport_loss,
             "detection_loss": detection_loss,
+            "classification_loss": classification_loss,
             "input_format": cfg.INPUT.FORMAT,
             "vis_period": cfg.VIS_PERIOD,
             "pixel_mean": cfg.MODEL.PIXEL_MEAN,
@@ -206,6 +213,7 @@ class ProxModel(nn.Module):
 
         results = self.detection_loss(results)
         results = self.transport_loss(results)
+        results = self.classification_loss(results)
 
         self.denormalize_boxes(batched_inputs)
 
@@ -277,6 +285,8 @@ class ProxModel(nn.Module):
             # breakpoint()
             bi["instances"] = Instances(image_size)
             bi["instances"].pred_boxes = Boxes(bi["pred_boxes"])
+            bi["instances"].scores = torch.sigmoid(bi["class_logits"]) # all shape BxC TODO: This seems like what diffusiondet does but make sure
+            bi["instances"].pred_classes = torch.argmax(bi["class_logits"], dim=-1) # all shape B
             r = detector_postprocess(bi["instances"], height, width)
             processed_results.append({"instances": r})
         return processed_results

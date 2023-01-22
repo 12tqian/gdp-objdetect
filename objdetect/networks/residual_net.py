@@ -184,7 +184,7 @@ class ResidualNet(nn.Module):
             "input_proj_dim": cfg.MODEL.NETWORK.INPUT_PROJ_DIM,
             "position_dim": cfg.MODEL.NETWORK.POSITION_DIM,
             "use_t": cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.USE_TIME,
-            "num_classes": #TODO
+            "num_classes": cfg.DATASETS.NUM_CLASSES,
         }
 
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
@@ -215,12 +215,14 @@ class ResidualNet(nn.Module):
         for bi, boxes in zip(batched_inputs, x):
             bi["pred_boxes"] = boxes
         
+        cls_feature = F.clone()
         for cls_layer in self.cls_module:
-            cls_feature = cls_layer(F)
+            cls_feature = cls_layer(cls_feature)
         class_logits = self.class_logits(cls_feature) # shape N, B, C
         
         for bi, class_logit in zip(batched_inputs, class_logits):
             bi["class_logits"] = class_logit
+
 
         
         return batched_inputs
