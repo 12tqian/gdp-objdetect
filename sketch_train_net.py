@@ -142,7 +142,11 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
                             log_dict[image_file_name] = logged_images
 
                         wandb.log(log_dict)
-
+                    if step - start_iter > 5 and (
+                        (step + 1) % 20 == 0 or step == cfg.SOLVER.MAX_ITER - 1
+                    ):
+                        lr = optimizer.param_groups[0]["lr"]
+                        tqdm.write(f"iter: {step}   loss: {sum_loss}   lr: {lr}")
                 accelerator.backward(sum_loss)
                 optimizer.step()
                 if not accelerator.optimizer_step_was_skipped:
@@ -153,6 +157,7 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
 
                 if use_profile:
                     profiler.step()
+                
 
     accelerator.wait_for_everyone()
     accelerator.end_training()

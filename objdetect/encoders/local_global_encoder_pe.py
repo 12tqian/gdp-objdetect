@@ -20,7 +20,7 @@ import pickle
 
 
 @ENCODER_REGISTRY.register()
-class LocalGlobalEncoder(nn.Module):
+class LocalGlobalEncoderPE(nn.Module):
     """
     Encodes local and global features from ROI and resnet using two separate resent networks.
     """
@@ -61,6 +61,12 @@ class LocalGlobalEncoder(nn.Module):
 
         # input is 256x7x7, output is 256x1x1
 
+        self.pe_kind = "sine"
+        self.max_compressed_size = 100
+        self.learn_pe = False
+        self.hidden_dim = 256
+        self.create_positional_encoding()
+
         self.conv_global = nn.Sequential(
             nn.Conv2d(2048, self.encoder_dim, 1),
         )
@@ -76,7 +82,7 @@ class LocalGlobalEncoder(nn.Module):
         self.pool_local = nn.AdaptiveAvgPool2d((1, 1))
 
         self.ffn_global = torch.nn.Sequential(
-            nn.Linear(self.encoder_dim, 256),
+            nn.Linear(self.encoder_dim + self.pe_dim, 256),
             nn.ReLU(),
             nn.Linear(256, 256),
             nn.ReLU(),
@@ -113,6 +119,30 @@ class LocalGlobalEncoder(nn.Module):
         state_dict.pop("stem.fc.bias")
         self.global_backbone.load_state_dict(state_dict)
         self.local_backbone.bottom_up.load_state_dict(state_dict)
+
+    def create_positional_encoding(self):
+        if self.pe_kind == "none":
+            self.pe_dim = 0
+            return
+
+        if self.pe_kind == "rand":
+            row_embed = torch.rand(
+                self.max_compressed_size, self.hidden_dim // 2
+            )  # MxD/2
+            col_embed = torch.rand(
+                self.max_compressed_size, self.hidden_dim // 2
+            )  # MxD/2
+            self.pe_dim = self.hidden_dim
+        else:
+            assert self.pe_kind == "sine"
+            tmp = torch.arange(self.max_compressed_size).float()  # M
+            freq = torch.arange(self.hidden_dim // 4).float()  # D/4
+            freq = tmp.unsqueeze(-1) / torch.pow(
+                10000, 4 * freq.unsqueeze(0) / self.hidden_dim
+            )  # MxD/4
+            row_embed = torch.cat([freq.sin(), freq.cos()], -1)  # MxD/2
+            col_embed = row_embed
+            self.pe_dim = self.hidden_dim
 
     @classmethod
     def from_config(cls, cfg):
@@ -193,7 +223,19 @@ class LocalGlobalEncoder(nn.Module):
         roi_features = self.pool_local(roi_features).squeeze(4).squeeze(3)
 
         global_features = self.conv_global(global_features)
+        B, _, H, W = global_features.shape
+
         global_features = global_features.permute(0, 2, 3, 1)
+        if self.pe_kind != "none":
+            pos = torch.cat(
+                [
+                    self.col_embed[:W].unsqueeze(0).repeat(H, 1, 1),
+                    self.row_embed[:H].unsqueeze(1).repeat(1, W, 1),
+                ],
+                -1,
+            )  # H'xW'xD
+            pos = pos.unsqueeze(0).repeat(B, 1, 1, 1)  # BxH'xW'xD
+            global_features = torch.cat([global_features, pos], -1)  # BxH'xW'x2D
         global_features = self.ffn_global(global_features)
         global_features = global_features.permute(0, 3, 1, 2)
         global_features = self.pool_global(global_features)
