@@ -38,7 +38,6 @@ from detectron2.data import (
 from detectron2.engine import (
     default_argument_parser,
     default_setup,
-    default_writers,
     launch,
 )
 from detectron2.evaluation import (
@@ -55,8 +54,9 @@ from detectron2.evaluation import (
 )
 from detectron2.modeling import build_model
 from detectron2.solver import build_lr_scheduler, build_optimizer
+from objdetect.utils.wandb_utils import get_logged_batched_input_wandb
 from detectron2.utils.events import EventStorage
-from objdetect.utils.wandb_utils import log_batched_inputs_wandb
+
 from torch.nn.parallel import DistributedDataParallel
 
 logger = logging.getLogger("detectron2")
@@ -141,64 +141,78 @@ def do_train(cfg, model, resume=False):
         checkpointer, cfg.SOLVER.CHECKPOINT_PERIOD, max_iter=max_iter
     )
 
-    writers = (
-        default_writers(cfg.OUTPUT_DIR, max_iter) if comm.is_main_process() else []
-    )
-
     # compared to "train_net.py", we do not support accurate timing and
     # precise BN here, because they are not trivial to implement in a small training loop
     mapper = ProxModelDatasetMapper(cfg, is_train=True)
     data_loader = build_detection_train_loader(cfg, mapper=mapper)
     logger.info("Starting training from iteration {}".format(start_iter))
-    with EventStorage(start_iter) as storage:
-        for data, iteration in zip(data_loader, range(start_iter, max_iter)):
-            storage.iter = iteration
+    # single_iteration = cfg.SOLVER.NUM_GPUS * cfg.SOLVER.IMS_PER_BATCH
+    # iterations_for_one_epoch = cfg.DATASETS.TRAIN_COUNT / single_iteration
+    for data, iteration in zip(data_loader, range(start_iter, max_iter)):
 
-            sum_loss = torch.zeros(1).to(model.device)  # TODO: hacky
-            for h in range(num_horizon):
-                data = model(data)
+        sum_loss = torch.zeros(1).to(model.device)  # TODO: hacky
+        batch_size = len(data)
+        log_idx = torch.randint(batch_size, (1,)).item()
+        do_log = iteration % cfg.SOLVER.WANDB.LOG_FREQUENCY == 0
+        image_list = []
+        name = ""
+        for h in range(num_horizon):
+            data = model(data)
+            for item in data:
+                sum_loss = sum_loss + item["loss"]
+            if do_log:
+                image_list.append(get_logged_batched_input_wandb(data[log_idx]))
+                name = data[log_idx]["file_name"]
 
-                if comm.is_main_process():
-                    log_batched_inputs_wandb(data)
+            for item in data:
+                item["proposal_boxes"] = item["pred_boxes"].detach()
 
-                for item in data:
-                    sum_loss = sum_loss + item["loss"]
+        sum_loss = (
+            sum_loss.mean() / len(data) / num_horizon
+        )  # TODO: maybe sus, divide by batch size
 
-                for item in data:
-                    item["proposal_boxes"] = item["pred_boxes"].detach()
+        if comm.is_main_process() and do_log:
+            if do_log:
+                lst = name.split("/")
+                file_name = lst[-3] + "/" + lst[-2] + "/" + lst[-1]
+                wandb.log(
+                    {
+                        "loss": sum_loss.item(),
+                        file_name: image_list,
+                        "iteration": iteration,
+                    }
+                )
+            else:
+                wandb.log(
+                    {
+                        "loss": sum_loss.item(),
+                        # "epoch": iteration // len(data_loader.dataset)+ 1,
+                        "iteration": iteration,
+                    }
+                )
 
-            sum_loss = (
-                sum_loss.mean() / len(data) / num_horizon
-            )  # TODO: maybe sus, divide by batch size
+        assert torch.isfinite(sum_loss).all()
 
-            assert torch.isfinite(sum_loss).all()
+        optimizer.zero_grad()
+        sum_loss.backward()
+        optimizer.step()
+        lr = optimizer.param_groups[0]["lr"]
+        scheduler.step()
 
-            if comm.is_main_process():
-                storage.put_scalars(total_loss=sum_loss)
+        # if (
+        #     cfg.TEST.EVAL_PERIOD > 0
+        #     and (iteration + 1) % cfg.TEST.EVAL_PERIOD == 0
+        #     and iteration != max_iter - 1
+        # ):
+        #     do_test(cfg, model)
+        #     # Compared to "train_net.py", the test results are not dumped to EventStorage
+        #     comm.synchronize()
+        if iteration - start_iter > 5 and (
+            (iteration + 1) % 20 == 0 or iteration == max_iter - 1
+        ):
+            logger.info(f"iter: {iteration}   loss: {sum_loss}   lr: {lr}")
 
-            optimizer.zero_grad()
-            sum_loss.backward()
-            optimizer.step()
-            storage.put_scalar(
-                "lr", optimizer.param_groups[0]["lr"], smoothing_hint=False
-            )
-            scheduler.step()
-
-            # if (
-            #     cfg.TEST.EVAL_PERIOD > 0
-            #     and (iteration + 1) % cfg.TEST.EVAL_PERIOD == 0
-            #     and iteration != max_iter - 1
-            # ):
-            #     do_test(cfg, model)
-            #     # Compared to "train_net.py", the test results are not dumped to EventStorage
-            #     comm.synchronize()
-
-            if iteration - start_iter > 5 and (
-                (iteration + 1) % 20 == 0 or iteration == max_iter - 1
-            ):
-                for writer in writers:
-                    writer.write()
-            periodic_checkpointer.step(iteration)
+        periodic_checkpointer.step(iteration)
 
 
 def setup(args):

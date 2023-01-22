@@ -60,21 +60,38 @@ class LocalGlobalEncoder(nn.Module):
         self.normalizer = lambda x: (x - self.pixel_mean) / self.pixel_std
 
         # input is 256x7x7, output is 256x1x1
-        self.local_line_layers = nn.Sequential(
-            nn.Conv2d(256, self.encoder_dim, 3), nn.AdaptiveAvgPool2d((1, 1))
+
+        self.conv_global = nn.Sequential(
+            nn.Conv2d(2048, self.encoder_dim, 1),
         )
 
-        self.global_line_layers = nn.Sequential(
-            nn.Conv2d(2048, self.encoder_dim, 1), nn.AdaptiveAvgPool2d((1, 1))
-        )
-
-        self.ffn = torch.nn.Sequential(
-            nn.Linear(self.encoder_dim * 2, 256),
+        self.ffn_local = torch.nn.Sequential(
+            nn.Linear(self.encoder_dim, 256),
             nn.ReLU(),
             nn.Linear(256, 256),
             nn.ReLU(),
             nn.Linear(256, self.encoder_dim),
         )
+
+        self.pool_local = nn.AdaptiveAvgPool2d((1, 1))
+
+        self.ffn_global = torch.nn.Sequential(
+            nn.Linear(self.encoder_dim, 256),
+            nn.ReLU(),
+            nn.Linear(256, 256),
+            nn.ReLU(),
+            nn.Linear(256, self.encoder_dim),
+        )
+
+        self.ffn_both = torch.nn.Sequential(
+            nn.Linear(2 * self.encoder_dim, 256),
+            nn.ReLU(),
+            nn.Linear(256, 256),
+            nn.ReLU(),
+            nn.Linear(256, self.encoder_dim),
+        )
+
+        self.pool_global = nn.AdaptiveAvgPool2d((1, 1))
 
         self.path_manager: PathManager = PathManager()
         self.path_manager.register_handler(HTTPURLHandler())
@@ -147,7 +164,7 @@ class LocalGlobalEncoder(nn.Module):
             # bad scaling
             boxes = (
                 box_cxcywh_to_xyxy(
-                    box_clamp_01(bi["proposal_boxes"]) # TODO: maybe not necessary
+                    box_clamp_01(bi["proposal_boxes"])  # TODO: maybe not necessary
                 )
                 * scale
             )
@@ -163,21 +180,35 @@ class LocalGlobalEncoder(nn.Module):
             fpn_features_dict[feature_name] for feature_name in self.fpn_in_features
         ]
         roi_features = self.box_pooler(fpn_features, proposal_boxes)
-
-        roi_features = self.local_line_layers(roi_features).view(
-            batch_size, num_proposals_per_image, -1
+        roi_features = roi_features.view(
+            batch_size,
+            num_proposals_per_image,
+            -1,
+            self.pooler_resolution,
+            self.pooler_resolution,
         )
-        global_features = self.global_line_layers(global_features).view(
-            batch_size, 1, -1
-        ).repeat(1, num_proposals_per_image, 1)
+        roi_features = roi_features.permute(0, 1, 3, 4, 2)
+        roi_features = self.ffn_local(roi_features)
+        roi_features = roi_features.permute(0, 1, 4, 2, 3)
+        roi_features = self.pool_local(roi_features).squeeze(4).squeeze(3)
 
-        encoding = self.ffn(torch.cat((roi_features, global_features), dim=2))
+        global_features = self.conv_global(global_features)
+        global_features = global_features.permute(0, 2, 3, 1)
+        global_features = self.ffn_global(global_features)
+        global_features = global_features.permute(0, 3, 1, 2)
+        global_features = self.pool_global(global_features)
+        global_features = global_features.view(batch_size, 1, -1).repeat(
+            1, num_proposals_per_image, 1
+        )
+        encoding = self.ffn_both(torch.cat((roi_features, global_features), dim=2))
         for input, item_encoding in zip(batched_inputs, encoding):
             input["encoding"] = item_encoding
 
         return batched_inputs
 
-    def preprocess_image(self, batched_inputs: List[Dict[str, torch.Tensor | Instances]]):
+    def preprocess_image(
+        self, batched_inputs: List[Dict[str, torch.Tensor | Instances]]
+    ):
         """
         Normalize, pad and batch the input images.
         """

@@ -10,3 +10,4 @@ from .losses import (
 )
 from .networks.residual_net import ResidualNet
 from .datasets.synthetic_dataset import synthetic_train_function, synthetic_val_function
+from .datasets.coco_dataset_small import coco_small_train_function

@@ -12,8 +12,7 @@ from .utils.box_utils import box_cxcywh_to_xyxy
 class UniformRandomBoxes(nn.Module):
     @configurable
     def __init__(self, *, is_inf_proposal: bool):
-        super(UniformRandomBoxes, self).__init__()
-        pass
+        super().__init__()
 
     @classmethod
     def from_config(cls, cfg, is_inf_proposal: bool):
@@ -47,9 +46,13 @@ class UniformRandomBoxes(nn.Module):
         for bi in batched_inputs:
             proposal_boxes = torch.rand(num_proposal_boxes, 4)
             proposal_boxes = box_cxcywh_to_xyxy(proposal_boxes)
-            bi["proposal_boxes"] = (
-                proposal_boxes
-                * torch.Tensor([bi["width"], bi["height"], bi["width"], bi["height"]])
+            bi["proposal_boxes"] = proposal_boxes * torch.Tensor(
+                [
+                    bi["width"],
+                    bi["height"],
+                    bi["width"],
+                    bi["height"],
+                ]
             )
             # .to(dtype=bi["image"].dtype)
             # print(bi["proposal_boxes"].dtype)
@@ -59,43 +62,79 @@ class UniformRandomBoxes(nn.Module):
 @PROPOSAL_REGISTRY.register()
 class NoisedGroundTruth(nn.Module):
     @configurable
-    def __init__(self):
+    def __init__(self, *, gaussian_error: float, use_t: bool, is_inf_proposal: bool):
         super().__init__()
+        self.gaussian_error = gaussian_error  # default should be 0.1??
+        self.use_t = use_t
 
     @classmethod
-    def from_config(cls, cfg):
-        return {"num_proposal_boxes": cfg.PROPOSAL_GENERATOR.NUM_PROPOSALS}
+    def from_config(cls, cfg, is_inf_proposal: bool):
+        return {
+            # "num_proposal_boxes": cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.NUM_PROPOSALS, # TODO: Hardcoding this to be for train because only using GT for train
+            "gaussian_error": cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.GAUSSIAN_ERROR,  # TODO: Maybe make these function args and put the if train/inference logic in the same place as calculating num_proposal_boxes
+            "use_t": cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.USE_TIME,
+            "is_inf_proposal": is_inf_proposal,
+        }
 
-    def forward(batched_inputs, noise_scale):
-        """
-        Args:
-            noise_scale: proportion of gaussian noise to add to boxes
-            batched_inputs: a list, batched outputs of :class:`DatasetMapper` .
-                Each item in the list contains the inputs for one image.
-                For now, each item in the list is a dict that contains:
-                * image: Tensor, image in (C, H, W) format.
-                * instances (required): groundtruth :class:`Instances`
-                * instances (optional): groundtruth boxes tensor shape num_proposal_boxes x 4
-                Other information that's included in the original dicts, such as:
-                * "height", "width" (int): the output resolution of the model, used in inference.
-                  See :meth:`postprocess` for details.
-        Returns:
-            batched_inputs: a list, batched outputs of :class:`DatasetMapper` .
-                Each item in the list contains the inputs for one image.
-                For now, each item in the list is a dict that contains:
-                * image: Tensor, image in (C, H, W) format.
-                * instances (required): groundtruth :class:`Instances`
-                * instances (optional): groundtruth boxes tensor shape num_proposal_boxes x 4
-                Other information that's included in the original dicts, such as:
-                * "height", "width" (int): the output resolution of the model, used in inference.
-                  See :meth:`postprocess` for details.
-        """
+    def forward(
+        self, num_proposal_boxes: int, batched_inputs: List[Dict[str, torch.Tensor]]
+    ):
+
         for bi in batched_inputs:
-            # Note: Is the batched_input gt boxes normalized?
-            noise = torch.randn(4, dtype=bi["image"].type())
-            proposal_boxes = (1 - noise_scale) * proposal_boxes + noise_scale * noise
-            # proposal_boxes = box_clamp(proposal_boxes)
-            proposal_boxes = box_cxcywh_to_xyxy(proposal_boxes)
-            # image_input["proposal_boxes"] = proposal_boxes * torch.Tensor(image_input["width"], image_input["height"], image_input["width"], image_input["height"])
+            gt_boxes = bi["instances"].gt_boxes.tensor
+            scale = torch.Tensor(
+                [
+                    bi["width"],
+                    bi["height"],
+                    bi["width"],
+                    bi["height"],
+                ]
+            )
 
+            if len(gt_boxes) > 0:
+                sampled_indices = torch.randint(
+                    len(gt_boxes),
+                    size=(num_proposal_boxes,),
+                )  # B,
+                bi["original_gt"] = sampled_indices
+
+                sampled_gt_boxes = gt_boxes[sampled_indices]  # Bx4
+
+                if self.use_t:
+                    t = torch.randint(1000, size=(num_proposal_boxes,))  # B,
+
+                    alpha_cumprod = (1 - self.gaussian_error) ** t
+                    alpha_cumprod = alpha_cumprod.unsqueeze(  # Bx1
+                        -1
+                    )  # all 4 dimensions of bounding box have the same t
+
+                    corrupted_sampled_ground_truth_boxes = (
+                        sampled_gt_boxes * (alpha_cumprod) ** 0.5
+                        + torch.randn((num_proposal_boxes, 4))  # the noise
+                        * (1 - alpha_cumprod) ** 0.5
+                    )
+                    prior = scale * corrupted_sampled_ground_truth_boxes
+                    prior_t = t
+                else:
+                    corrupted_sampled_ground_truth_boxes = (
+                        sampled_gt_boxes * (1 - self.gaussian_error) ** 0.5
+                        + torch.randn((num_proposal_boxes, 4))
+                        * self.gaussian_error**0.5
+                    )
+                    prior = scale * corrupted_sampled_ground_truth_boxes
+
+            else:
+                prior_t = torch.full((num_proposal_boxes,), 1000)
+                corrupted_sampled_ground_truth_boxes = scale * torch.randn(
+                    [num_proposal_boxes, 4]
+                )
+                prior = scale * corrupted_sampled_ground_truth_boxes
+
+            if self.use_t:
+                bi["proposal_boxes"] = prior
+                # TODO:
+                # do something with prior_t, this has t attached
+                # maybe at some point add in the gt box index here
+            else:
+                bi["proposal_boxes"] = prior
         return batched_inputs
