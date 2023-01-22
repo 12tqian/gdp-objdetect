@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from detectron2.config import configurable
+import math
 
 from typing import Dict, List, Optional, Tuple
 
@@ -108,6 +109,8 @@ class ResidualNet(nn.Module):
         feature_dim,
         num_block,
         hidden_size,
+        use_t,
+        position_dim,
         input_proj_dim=None,
         feature_proj_dim=None,
         use_difference=True,
@@ -117,6 +120,9 @@ class ResidualNet(nn.Module):
         self.input_dim = input_dim
         self.feature_dim = feature_dim
         self.hidden_size = hidden_size
+        self.use_t = use_t
+        self.position_dim = position_dim
+
         self.input_proj = (
             ProjectionLayer(input_dim, input_proj_dim)
             if input_proj_dim is not None
@@ -142,6 +148,11 @@ class ResidualNet(nn.Module):
                 )
             )
 
+        if self.use_t:
+            self.time_projections = nn.ModuleList()
+            for i in range(num_block):
+                self.time_projections.append(ProjectionLayer(input_dim + position_dim, input_dim))
+
     @classmethod
     def from_config(cls, cfg):
         return {
@@ -151,6 +162,8 @@ class ResidualNet(nn.Module):
             "hidden_size": cfg.MODEL.NETWORK.HIDDEN_SIZE,
             "feature_proj_dim": cfg.MODEL.NETWORK.FEATURE_PROJ_DIM,
             "input_proj_dim": cfg.MODEL.NETWORK.INPUT_PROJ_DIM,
+            "position_dim": cfg.MODEL.NETWORK.POSITION_DIM,
+            "use_t": cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.USE_TIME,
         }
 
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
@@ -161,11 +174,24 @@ class ResidualNet(nn.Module):
         """
         F = torch.stack([input["encoding"] for input in batched_inputs])
         x = torch.stack([input["proposal_boxes"] for input in batched_inputs])
+            
         if F.ndim == 2:
             B = x.shape[1]
             F = F.unsqueeze(1).expand(-1, B, -1)
-        for block in self.blocks:
+        for i, block in enumerate(self.blocks):
+            if self.use_t:
+                t = torch.stack([input["prior_t"] for input in batched_inputs])
+                half_dim = self.position_dim // 2
+                embeddings = math.log(10000) / (half_dim - 1)
+                embeddings = torch.exp(torch.arange(half_dim, device=x.device) * -embeddings) # (1, half_dim)
+                embeddings = t[..., None] * embeddings[None, :]
+                embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1) # (shape(t), input_dim)
+                x = torch.cat((x, embeddings), dim =-1)
+                x = self.time_projections[i](x)
+
             x = block(F, x)
+
+
         for bi, boxes in zip(batched_inputs, x):
             bi["pred_boxes"] = boxes
         return batched_inputs
