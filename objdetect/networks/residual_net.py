@@ -45,6 +45,11 @@ class ProjectionLayer(nn.Module):
         return self._proj_dim
 
     def forward(self, x):
+        # print('bef break', x.type())
+
+        # if x.type() != 'torch.cuda.HalfTensor':
+        #     breakpoint()
+        
         return self.proj(x)
 
 
@@ -85,6 +90,8 @@ class ResidualBlock(nn.Module):
         )
 
     def forward(self, F, x):
+        # print(F.type())
+        # print(x.type())
         F_x = torch.cat([self.feature_proj(F), self.input_proj(x)], dim=-1)
         t = self.map_t(F_x)
 
@@ -174,7 +181,11 @@ class ResidualNet(nn.Module):
         """
         F = torch.stack([input["encoding"] for input in batched_inputs])
         x = torch.stack([input["proposal_boxes"] for input in batched_inputs])
+<<<<<<< HEAD
             
+=======
+
+>>>>>>> 3c8200097f5126d6cb9fdc550875de56829a5b94
         if F.ndim == 2:
             B = x.shape[1]
             F = F.unsqueeze(1).expand(-1, B, -1)
