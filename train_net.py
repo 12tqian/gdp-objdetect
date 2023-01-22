@@ -63,6 +63,8 @@ logger = logging.getLogger("detectron2")
 
 from objdetect import ProxModelDatasetMapper, add_proxmodel_cfg
 
+from tqdm import tqdm
+
 
 def get_evaluator(cfg, dataset_name, output_folder=None):
     """
@@ -148,7 +150,10 @@ def do_train(cfg, model, resume=False):
     logger.info("Starting training from iteration {}".format(start_iter))
     # single_iteration = cfg.SOLVER.NUM_GPUS * cfg.SOLVER.IMS_PER_BATCH
     # iterations_for_one_epoch = cfg.DATASETS.TRAIN_COUNT / single_iteration
-    for data, iteration in zip(data_loader, range(start_iter, max_iter)):
+    for data, iteration in tqdm(
+        zip(data_loader, range(start_iter, max_iter)),
+        disable=not comm.is_main_process(),
+    ):
 
         sum_loss = torch.zeros(1).to(model.device)  # TODO: hacky
         batch_size = len(data)
