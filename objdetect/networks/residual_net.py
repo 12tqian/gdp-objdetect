@@ -118,6 +118,7 @@ class ResidualNet(nn.Module):
         hidden_size,
         use_t,
         position_dim,
+        num_classes,
         input_proj_dim=None,
         feature_proj_dim=None,
         use_difference=True,
@@ -160,6 +161,18 @@ class ResidualNet(nn.Module):
             for i in range(num_block):
                 self.time_projections.append(ProjectionLayer(input_dim + position_dim, input_dim))
 
+
+        cls_module = list()
+        for _ in range(3): # num_cls
+            cls_module.append(nn.Linear(self.feature_dim, self.feature_dim, False))
+            cls_module.append(nn.LayerNorm(self.feature_dim))
+            cls_module.append(nn.ReLU(inplace=True))
+        self.cls_module = nn.ModuleList(cls_module)
+
+        self.class_logits = nn.Linear(self.feature_dim, num_classes)
+
+        
+
     @classmethod
     def from_config(cls, cfg):
         return {
@@ -171,6 +184,7 @@ class ResidualNet(nn.Module):
             "input_proj_dim": cfg.MODEL.NETWORK.INPUT_PROJ_DIM,
             "position_dim": cfg.MODEL.NETWORK.POSITION_DIM,
             "use_t": cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.USE_TIME,
+            "num_classes": #TODO
         }
 
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
@@ -200,4 +214,13 @@ class ResidualNet(nn.Module):
 
         for bi, boxes in zip(batched_inputs, x):
             bi["pred_boxes"] = boxes
+        
+        for cls_layer in self.cls_module:
+            cls_feature = cls_layer(F)
+        class_logits = self.class_logits(cls_feature) # shape N, B, C
+        
+        for bi, class_logit in zip(batched_inputs, class_logits):
+            bi["class_logits"] = class_logit
+
+        
         return batched_inputs

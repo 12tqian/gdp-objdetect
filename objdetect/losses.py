@@ -5,6 +5,9 @@ from detectron2.config import configurable
 from torch import nn
 from detectron2.structures import Instances
 
+from fvcore.nn import sigmoid_focal_loss_jit
+from torch.nn.functional import binary_cross_entropy_with_logits
+
 
 @LOSS_REGISTRY.register()
 class BoxDistanceLoss(nn.Module):
@@ -146,6 +149,44 @@ class BoxProjectionOriginLoss(nn.Module):
         loss = (original_gt_boxes - pred_boxes).square().sum(-1)
 
         loss = torch.where(original_gt_mask, loss, torch.zeros_like(loss))  # N x B
+
+        for bi, lo in zip(batched_inputs, loss):
+            assert torch.isfinite(lo).all()
+            if "loss" in bi:
+                bi["loss"] = bi["loss"] + lo
+            else:
+                bi["loss"] = lo
+
+        return batched_inputs
+
+
+@LOSS_REGISTRY.register()
+class ClassificationLoss(nn.Module):
+    @configurable
+    def __init__(self):
+        super().__init__()
+
+    @classmethod
+    def from_config(cls, cfg):
+        return {}
+
+    def forward(self, batched_inputs: List[Dict[str, torch.Tensor | Instances]]):
+        """
+        batched_inputs["original_gt"] shape B, contains the index for the original groundtruth box that was noised in proposal box generation.
+        """
+        # TODO: fix device hack
+        device = batched_inputs[0]["image"].device
+
+        class_logits = []
+        target_onehot = []
+        for bi in batched_inputs:
+            class_logits.append(bi["class_logits"].gt_boxes.tensor[bi["original_gt"]]) # Appending a Bx4
+            target_onehot.append(#TODO
+
+        class_logits = torch.stack(class_logits) # NxB
+        target_onehot = torch.stack(target_onehot) # NxB
+        
+        loss = binary_cross_entropy_with_logits(class_logits, target_onehot, reduction="none")
 
         for bi, lo in zip(batched_inputs, loss):
             assert torch.isfinite(lo).all()
