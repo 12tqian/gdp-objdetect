@@ -4,6 +4,7 @@ from .encoders.resnet_encoder_pe import ResnetEncoderPE
 from .encoders.resnet_encoder import ResnetEncoder
 from .encoders.local_global_encoder import LocalGlobalEncoder
 from .encoders.local_global_encoder_pe import LocalGlobalEncoderPE
+from .encoders.resnet_pe_flatten import ResnetEncoderPEFlatten
 from .prox_model import ProxModel
 from .proposals import UniformRandomBoxes
 from .losses import (
