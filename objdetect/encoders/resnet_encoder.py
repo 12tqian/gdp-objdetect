@@ -110,8 +110,7 @@ class ResnetEncoder(nn.Module):
             1, num_proposals_per_image, 1
         )
 
-        encoding = self.ffn(global_features)
-        for input, item_encoding in zip(batched_inputs, encoding):
+        for input, item_encoding in zip(batched_inputs):
             input["encoding"] = item_encoding
 
         return batched_inputs

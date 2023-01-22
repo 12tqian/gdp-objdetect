@@ -41,7 +41,6 @@ def add_proxmodel_cfg(cfg):
     cfg.MODEL.PROPOSAL_GENERATOR.NAME = "UniformRandomBoxes"
     cfg.MODEL.PROPOSAL_GENERATOR.NUM_PROPOSALS = 50
 
-
     cfg.MODEL.LOSS = CN()
     cfg.MODEL.LOSS.BOX_DISTANCE_TYPE = "l2"
     cfg.MODEL.LOSS.TRANSPORT_LAMBDA = 1.0
