@@ -44,15 +44,15 @@ class UniformRandomBoxes(nn.Module):
                 * "height", "width" (int): the output resolution of the model, used in inference.
                   See :meth:`postprocess` for details.
         """
-        for image_input in batched_inputs:
+        for bi in batched_inputs:
             proposal_boxes = torch.rand(num_proposal_boxes, 4)
             proposal_boxes = box_cxcywh_to_xyxy(proposal_boxes)
-            image_input["proposal_boxes"] = proposal_boxes * torch.Tensor(
-                [image_input["width"],
-                image_input["height"],
-                image_input["width"],
-                image_input["height"]]
+            bi["proposal_boxes"] = (
+                proposal_boxes
+                * torch.Tensor([bi["width"], bi["height"], bi["width"], bi["height"]])
             )
+            # .to(dtype=bi["image"].dtype)
+            # print(bi["proposal_boxes"].dtype)
         return batched_inputs
 
 
@@ -90,9 +90,9 @@ class NoisedGroundTruth(nn.Module):
                 * "height", "width" (int): the output resolution of the model, used in inference.
                   See :meth:`postprocess` for details.
         """
-        for image_input in batched_inputs:
+        for bi in batched_inputs:
             # Note: Is the batched_input gt boxes normalized?
-            noise = torch.randn(4)
+            noise = torch.randn(4, dtype=bi["image"].type())
             proposal_boxes = (1 - noise_scale) * proposal_boxes + noise_scale * noise
             # proposal_boxes = box_clamp(proposal_boxes)
             proposal_boxes = box_cxcywh_to_xyxy(proposal_boxes)

@@ -188,6 +188,8 @@ class ProxModel(nn.Module):
         if not self.training:
             return self.inference(batched_inputs)
 
+        # breakpoint()
+
         if "proposal_boxes" not in batched_inputs[0]:
             assert self.train_proposal_generator is not None
             batched_inputs = self.train_proposal_generator(

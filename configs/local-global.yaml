@@ -3,5 +3,5 @@ MODEL:
   ENCODER:
     NAME: LocalGlobalEncoder
 SOLVER:
-  IMS_PER_BATCH: 6
+  IMS_PER_BATCH: 4
   BASE_LR: 0.001
