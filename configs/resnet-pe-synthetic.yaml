@@ -9,6 +9,8 @@ SOLVER:
   IMS_PER_BATCH: 64
   BASE_LR: 0.001
   CHECKPOINT_PERIOD: 1000
+  WANDB:
+    ENABLED: True
 
 DATASETS:
   TRAIN: ("synthetic_train_10",)

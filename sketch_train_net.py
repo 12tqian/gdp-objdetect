@@ -101,7 +101,7 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
 
                 # setup stuff for logging
                 log_images = (
-                    cfg.SOLVER.WANDB.ENABLE
+                    cfg.SOLVER.WANDB.ENABLED
                     and step % cfg.SOLVER.WANDB.LOG_FREQUENCY == 0
                 )
                 log_idx = torch.randint(len(batched_inputs), (1,)).item()
@@ -130,7 +130,7 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
                 assert torch.isfinite(sum_loss).all()
 
                 if accelerator.is_main_process:
-                    if cfg.SOLVER.WANDB.ENABLE:
+                    if cfg.SOLVER.WANDB.ENABLED:
                         log_dict = {
                             "loss": sum_loss.item(),
                             "iteration": step,
