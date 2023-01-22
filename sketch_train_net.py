@@ -4,7 +4,7 @@ from tqdm import tqdm
 from torch.profiler import profile, record_function, ProfilerActivity
 from contextlib import nullcontext
 
-from accelerate import set_seed
+from accelerate.utils import set_seed
 
 #!/usr/bin/env python
 # Copyright (c) Facebook, Inc. and its affiliates.
@@ -44,21 +44,8 @@ from detectron2.data import (
 from detectron2.engine import (
     default_argument_parser,
     default_setup,
-    default_writers,
-    launch,
 )
-from detectron2.evaluation import (
-    CityscapesInstanceEvaluator,
-    CityscapesSemSegEvaluator,
-    COCOEvaluator,
-    COCOPanopticEvaluator,
-    DatasetEvaluators,
-    LVISEvaluator,
-    PascalVOCDetectionEvaluator,
-    SemSegEvaluator,
-    inference_on_dataset,
-    print_csv_format,
-)
+
 from detectron2.modeling import build_model
 from detectron2.solver import build_lr_scheduler, build_optimizer
 from detectron2.utils.events import EventStorage
@@ -68,6 +55,7 @@ from torch.nn.parallel import DistributedDataParallel
 logger = logging.getLogger("detectron2")
 
 from objdetect import ProxModelDatasetMapper, add_proxmodel_cfg
+from objdetect.utils.wandb_utils import get_logged_batched_input_wandb
 
 
 def get_profiler():
@@ -95,7 +83,6 @@ def pprofile(prof):
 
 def do_train(cfg, model, accelerator: Accelerator, resume=False):
     model.train()
-    set_seed(42)
 
     # optimizer and scheduler
     optimizer = build_optimizer(cfg, model)
@@ -137,10 +124,23 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
             it_item, disable=not accelerator.is_main_process
         ):
             with accelerator.accumulate(model):
+                
+                # setup stuff for logging
+                log_images = step % cfg.SOLVER.WANDB.LOG_FREQUENCY == 0
+                log_idx = torch.randint(len(batched_inputs), (1,)).item()
+                logged_images = []
+
+                # horizons loop
                 sum_loss = torch.zeros(1, device=model.device)
                 for _ in range(cfg.MODEL.NUM_HORIZON):
 
                     batched_inputs = model(batched_inputs)
+
+                    if log_images:
+                        logged_images.append(
+                            get_logged_batched_input_wandb(data[log_idx])
+                        )
+                        image_name = bi[log_idx]["file_name"]
 
                     for bi in batched_inputs:
                         sum_loss = sum_loss + bi["loss"]
@@ -148,15 +148,28 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
                     for bi in batched_inputs:
                         bi["proposal_boxes"] = bi["pred_boxes"].detach()
 
-                sum_loss = (
-                    sum_loss.mean() / len(batched_inputs) / cfg.MODEL.NUM_HORIZON
-                )  # TODO: maybe sus, divide by batch size
+                sum_loss = sum_loss.mean() / len(batched_inputs) / cfg.MODEL.NUM_HORIZON
 
                 assert torch.isfinite(sum_loss).all()
 
                 if accelerator.is_main_process:
-                    # logging and checkpointing
-                    print(f"step {step} loss: {sum_loss.item()}")
+
+                    if log_images:
+                        abrv_image_name = "/".join(image_name.split("/")[-3:])
+                        wandb.log(
+                            {
+                                "loss": sum_loss.item(),
+                                abrv_image_name: logged_images,
+                                "iteration": step,
+                            }
+                        )
+                    else:
+                        wandb.log(
+                            {
+                                "loss": sum_loss.item(),
+                                "iteration": step,
+                            }
+                        )
 
                 accelerator.backward(sum_loss)
                 optimizer.step()
@@ -193,16 +206,10 @@ def main(args):
     model = build_model(cfg)
     accelerator = Accelerator()
 
-    # if args.eval_only:
-    #     DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
-    #         cfg.MODEL.WEIGHTS, resume=args.resume
-    #     )
-    #     return do_test(cfg, model)
-
     do_train(cfg, model, accelerator)
-    # return do_test(cfg, model)
 
 
 if __name__ == "__main__":
+    set_seed(42)
     args = default_argument_parser().parse_args()
     main(args)
