@@ -153,6 +153,7 @@ def do_train(cfg, model, resume=False):
     for data, iteration in tqdm(
         zip(data_loader, range(start_iter, max_iter)),
         disable=not comm.is_main_process(),
+        total=cfg.SOLVER.MAX_ITER,
     ):
 
         sum_loss = torch.zeros(1).to(model.device)  # TODO: hacky

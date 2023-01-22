@@ -95,12 +95,15 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
     with get_profiler() if use_profile else nullcontext() as profiler:
 
         for batched_inputs, step in tqdm(
-            it_item, disable=not accelerator.is_main_process
+            it_item, disable=not accelerator.is_main_process, total=cfg.SOLVER.MAX_ITER
         ):
             with accelerator.accumulate(model):
 
                 # setup stuff for logging
-                log_images = cfg.SOLVER.WANDB.ENABLE and step % cfg.SOLVER.WANDB.LOG_FREQUENCY == 0
+                log_images = (
+                    cfg.SOLVER.WANDB.ENABLE
+                    and step % cfg.SOLVER.WANDB.LOG_FREQUENCY == 0
+                )
                 log_idx = torch.randint(len(batched_inputs), (1,)).item()
                 image_name = batched_inputs[log_idx]["file_name"]
                 logged_images = []
@@ -150,7 +153,7 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
 
                 if use_profile:
                     profiler.step()
-                
+
     accelerator.wait_for_everyone()
     accelerator.end_training()
 
