@@ -1,0 +1,81 @@
+VERSION: 2
+MODEL:
+  META_ARCHITECTURE: "ProxModel"
+  PIXEL_MEAN: [123.675, 116.280, 103.530]
+  PIXEL_STD: [58.395, 57.120, 57.375]
+  BACKBONE:
+    NAME: "build_resnet_fpn_backbone"
+  RESNETS:
+    OUT_FEATURES: ["res2", "res3", "res4", "res5"]
+    STRIDE_IN_1X1: False
+  FPN:
+    IN_FEATURES: ["res2", "res3", "res4", "res5"]
+  ROI_HEADS:
+    IN_FEATURES: ["p2", "p3", "p4", "p5"]
+  ROI_BOX_HEAD:
+    POOLER_TYPE: "ROIAlignV2"
+    POOLER_RESOLUTION: 7
+    POOLER_SAMPLING_RATIO: 2
+  TRAIN_PROPOSAL_GENERATOR:
+    NAME: "UniformRandomBoxes"
+    NUM_PROPOSALS: 100
+    GAUSSIAN_ERROR: 0.1
+    USE_TIME: False
+  INFERENCE_PROPOSAL_GENERATOR:
+    NAME: "UniformRandomBoxes"
+    NUM_PROPOSALS: 100
+  ENCODER:
+    NAME: "LocalGlobalEncoder"
+    DIMENSION: 256
+    WEIGHTS: "https://dl.fbaipublicfiles.com/detectron2/ImageNetPretrained/torchvision/R-50.pkl"
+  NETWORK:
+    NAME: "ResidualNet"
+    INPUT_DIM: 4
+    FEATURE_DIM: 256
+    NUM_BLOCK: 10
+    HIDDEN_SIZE: 128
+    FEATURE_PROJ_DIM: 128
+    INPUT_PROJ_DIM: 128
+    POSITION_DIM: 128
+  NUM_HORIZON: 8
+  TRANSPORT_LOSS:
+    NAME: "BoxDistanceLoss"
+  DETECTION_LOSS: 
+    NAME: "BoxProjectionLoss"
+  LOSS:
+    BOX_DISTANCE_TYPE: "l2"
+    TRANSPORT_LAMBDA: 1.0
+SOLVER:
+  SEED: 40244023
+  OPTIMIZER: "SGD"
+  IMS_PER_BATCH: 4
+  BASE_LR: 0.0001
+  BACKBONE_MULTIPLIER: 1.0
+  CHECKPOINT_PERIOD: 1000
+  STEPS: (350000, 420000)
+  MAX_ITER: 250000
+  AMP:
+    ENABLED: True
+  WANDB:
+    ENABLED: False
+    LOG_FREQUENCY: 20
+  PROFILE: False
+DATASETS:
+  TRAIN_COUNT: 100
+  AUGMENTATION:
+    ENABLED: True
+  TRAIN: ("synthetic_train_10",)
+  TEST: ("synthetic_val_10",)
+INPUT:
+  MIN_SIZE_TRAIN: (480, 512, 544, 576, 608, 640, 672, 704, 736, 768, 800)
+  CROP:
+    ENABLED: True
+    TYPE: "absolute_range"
+    SIZE: (384, 600)
+    FORMAT: "RGB"
+TEST:
+  EVAL_PERIOD: 7330
+DATALOADER:
+  FILTER_EMPTY_ANNOTATIONS: False
+  NUM_WORKERS: 4
+
