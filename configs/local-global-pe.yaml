@@ -1,4 +1,3 @@
-_BASE_: "base-prox.yaml"
 MODEL:
   ENCODER:
     NAME: "LocalGlobalEncoderPE"
