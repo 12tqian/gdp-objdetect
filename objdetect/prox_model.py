@@ -287,6 +287,7 @@ class ProxModel(nn.Module):
             bi["instances"].pred_boxes = Boxes(bi["pred_boxes"])
             bi["instances"].scores = torch.sigmoid(bi["class_logits"]) # all shape BxC TODO: This seems like what diffusiondet does but make sure
             bi["instances"].pred_classes = torch.argmax(bi["class_logits"], dim=-1) # all shape B
+            print(bi["instances"].pred_classes.shape)
             r = detector_postprocess(bi["instances"], height, width)
             processed_results.append({"instances": r})
         return processed_results

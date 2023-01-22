@@ -2,4 +2,7 @@ _BASE_: "local-global.yaml"
 SOLVER:
   MAX_ITER: 10
 
+DATASETS:
+  TRAIN: ("coco_2017_train_1000small",)
+
 OUTPUT_DIR: "./output/local-global-test-eval"
