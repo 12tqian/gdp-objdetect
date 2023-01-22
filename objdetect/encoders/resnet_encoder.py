@@ -110,7 +110,7 @@ class ResnetEncoder(nn.Module):
             1, num_proposals_per_image, 1
         )
 
-        for input, item_encoding in zip(batched_inputs):
+        for input, item_encoding in zip(batched_inputs, global_features):
             input["encoding"] = item_encoding
 
         return batched_inputs
