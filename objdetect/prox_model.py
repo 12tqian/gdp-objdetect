@@ -202,6 +202,10 @@ class ProxModel(nn.Module):
 
         batched_inputs = self.encoder(batched_inputs)
 
+        # weird hack for amp with deepspeed
+        for bi in batched_inputs:
+            bi["proposal_boxes"] = bi["proposal_boxes"].to(bi["encoding"].dtype)
+
         results = self.network(batched_inputs)
 
         results = self.detection_loss(results)

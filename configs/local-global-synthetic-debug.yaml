@@ -1,14 +1,16 @@
 _BASE_: "base-prox.yaml"
 MODEL:
-  NUM_HORIZON: 5
+  NUM_HORIZON: 4
   TRAIN_PROPOSAL_GENERATOR:
     NAME: "UniformRandomBoxes"
     NUM_PROPOSALS: 100
   ENCODER:
     NAME: "LocalGlobalEncoderPE"
 SOLVER:
-  IMS_PER_BATCH: 8
+  IMS_PER_BATCH: 32
   BASE_LR: 0.001
+  WANDB:
+    ENABLE: False
 INPUT:
   CROP:
     ENABLED: True

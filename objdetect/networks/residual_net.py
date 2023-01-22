@@ -46,10 +46,6 @@ class ProjectionLayer(nn.Module):
 
     def forward(self, x):
         # print('bef break', x.type())
-
-        # if x.type() != 'torch.cuda.HalfTensor':
-        #     breakpoint()
-        
         return self.proj(x)
 
 
@@ -158,7 +154,9 @@ class ResidualNet(nn.Module):
         if self.use_t:
             self.time_projections = nn.ModuleList()
             for i in range(num_block):
-                self.time_projections.append(ProjectionLayer(input_dim + position_dim, input_dim))
+                self.time_projections.append(
+                    ProjectionLayer(input_dim + position_dim, input_dim)
+                )
 
     @classmethod
     def from_config(cls, cfg):
@@ -189,14 +187,17 @@ class ResidualNet(nn.Module):
                 t = torch.stack([input["prior_t"] for input in batched_inputs])
                 half_dim = self.position_dim // 2
                 embeddings = math.log(10000) / (half_dim - 1)
-                embeddings = torch.exp(torch.arange(half_dim, device=x.device) * -embeddings) # (1, half_dim)
+                embeddings = torch.exp(
+                    torch.arange(half_dim, device=x.device) * -embeddings
+                )  # (1, half_dim)
                 embeddings = t[..., None] * embeddings[None, :]
-                embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1) # (shape(t), input_dim)
-                x = torch.cat((x, embeddings), dim =-1)
+                embeddings = torch.cat(
+                    (embeddings.sin(), embeddings.cos()), dim=-1
+                )  # (shape(t), input_dim)
+                x = torch.cat((x, embeddings), dim=-1)
                 x = self.time_projections[i](x)
 
             x = block(F, x)
-
 
         for bi, boxes in zip(batched_inputs, x):
             bi["pred_boxes"] = boxes

@@ -110,7 +110,7 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
 
                 # horizons loop
                 sum_loss = torch.zeros(1, device=model.device)
-                for _ in range(cfg.MODEL.NUM_HORIZON):
+                for h in range(cfg.MODEL.NUM_HORIZON):
 
                     batched_inputs = model(batched_inputs)
 
@@ -178,10 +178,14 @@ def setup(args):
     return cfg
 
 
+global_is_main_process = False
+
 def main(args):
+    global global_is_main_process
     cfg = setup(args)
     model = build_model(cfg)
     accelerator = Accelerator()
+    global_is_main_process = accelerator.is_main_process
 
     if accelerator.is_main_process and cfg.SOLVER.WANDB.ENABLE:
         wandb.init(project="gdp-objdetect", config=cfg)

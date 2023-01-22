@@ -54,8 +54,6 @@ class UniformRandomBoxes(nn.Module):
                     bi["height"],
                 ]
             )
-            # .to(dtype=bi["image"].dtype)
-            # print(bi["proposal_boxes"].dtype)
         return batched_inputs
 
 
