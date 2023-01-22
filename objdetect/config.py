@@ -48,6 +48,8 @@ def add_proxmodel_cfg(cfg):
 
     # logging stuff
     cfg.SOLVER.PROFILE = False
+    cfg.SOLVER.BACKBONE_MULTIPLIER = 1.0
+    cfg.SOLVER.OPTIMIZER = "SGD"
 
     cfg.DATASETS.TRAIN_COUNT = 100
     cfg.DATASETS.AUGMENTATION = CN()

@@ -11,6 +11,7 @@ SOLVER:
   BASE_LR: 0.0001
   WANDB:
     ENABLED: True
+  OPTIMIZER: "AdamW"
 INPUT:
   CROP:
     ENABLED: True
@@ -20,4 +21,4 @@ DATASETS:
  AUGMENTATION:
   ENABLED: True
 
-OUTPUT_DIR: "./output/local-global-pe-synthetic-debug"
+OUTPUT_DIR: "./output/local-global-pe-synthetic-debug-adamw"
