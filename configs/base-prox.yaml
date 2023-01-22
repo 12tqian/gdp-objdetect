@@ -40,11 +40,10 @@ MODEL:
   NUM_HORIZON: 8
   TRANSPORT_LOSS:
     NAME: "BoxDistanceLoss"
-  DETECTION_LOSS: 
-    NAME: "BoxProjectionLoss"
-  LOSS:
     BOX_DISTANCE_TYPE: "l2"
     TRANSPORT_LAMBDA: 1.0
+  DETECTION_LOSS: 
+    NAME: "BoxProjectionLoss"
 SOLVER:
   SEED: 40244023
   OPTIMIZER: "SGD"
