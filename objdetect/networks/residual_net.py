@@ -181,11 +181,6 @@ class ResidualNet(nn.Module):
         """
         F = torch.stack([input["encoding"] for input in batched_inputs])
         x = torch.stack([input["proposal_boxes"] for input in batched_inputs])
-<<<<<<< HEAD
-            
-=======
-
->>>>>>> 3c8200097f5126d6cb9fdc550875de56829a5b94
         if F.ndim == 2:
             B = x.shape[1]
             F = F.unsqueeze(1).expand(-1, B, -1)

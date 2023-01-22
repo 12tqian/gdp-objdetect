@@ -98,15 +98,10 @@ class NoisedGroundTruth(nn.Module):
                 )  # B,
                 bi["original_gt"] = sampled_indices
 
-<<<<<<< HEAD
                 sampled_gt_boxes = gt_boxes[sampled_indices] / scale # Bx4
-=======
-                sampled_gt_boxes = gt_boxes[sampled_indices]  # Bx4
->>>>>>> 3c8200097f5126d6cb9fdc550875de56829a5b94
 
                 if self.use_t:
                     t = torch.randint(1000, size=(num_proposal_boxes,))  # B,
-
                     alpha_cumprod = (1 - self.gaussian_error) ** t
                     alpha_cumprod = alpha_cumprod.unsqueeze(  # Bx1
                         -1
@@ -136,12 +131,8 @@ class NoisedGroundTruth(nn.Module):
 
             if self.use_t:
                 bi["proposal_boxes"] = prior
-<<<<<<< HEAD
                 bi["prior_t"] = prior_t
                 # TODO: 
-=======
-                # TODO:
->>>>>>> 3c8200097f5126d6cb9fdc550875de56829a5b94
                 # do something with prior_t, this has t attached
                 # maybe at some point add in the gt box index here
             else:
