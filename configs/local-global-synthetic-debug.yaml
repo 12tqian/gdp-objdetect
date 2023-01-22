@@ -7,10 +7,10 @@ MODEL:
   ENCODER:
     NAME: "LocalGlobalEncoderPE"
 SOLVER:
-  IMS_PER_BATCH: 32
+  IMS_PER_BATCH: 48
   BASE_LR: 0.001
   WANDB:
-    ENABLE: False
+    ENABLED: True
 INPUT:
   CROP:
     ENABLED: True

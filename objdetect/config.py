@@ -53,7 +53,7 @@ def add_proxmodel_cfg(cfg):
     cfg.DATASETS.AUGMENTATION = CN()
     cfg.DATASETS.AUGMENTATION.ENABLED = True
     cfg.SOLVER.WANDB = CN()
-    cfg.SOLVER.WANDB.ENABLE = True
+    cfg.SOLVER.WANDB.ENABLED = False
     cfg.SOLVER.WANDB.LOG_FREQUENCY = 20
 
     # Optimizer.
