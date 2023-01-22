@@ -1,7 +1,5 @@
-_BASE_: "local-global.yaml"
+_BASE_: "local_global-sine.yaml"
 MODEL:
-  ENCODER:
-    NAME: LocalGlobalEncoder
   NUM_HORIZON: 4
   DETECTION_LOSS:
     NAME: "BoxProjectionOriginLoss"
@@ -12,17 +10,12 @@ MODEL:
     NUM_PROPOSALS: 100
   INFERENCE_PROPOSAL_GENERATOR:
     NAME: "UniformRandomBoxes"
-
 SOLVER:
   IMS_PER_BATCH: 2
   BASE_LR: 0.001
   CHECKPOINT_PERIOD: 1000
-
 DATASETS:
   TRAIN_COUNT: 100
   TRAIN: ("coco_2017_train_1000small",)
   TEST: ("coco_2017_val",)
-
-
-
-OUTPUT_DIR: "./output/noisedgt"
+OUTPUT_DIR: "./output/coco-local_global-noised_gt"

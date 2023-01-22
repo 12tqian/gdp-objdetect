@@ -18,7 +18,7 @@ import pickle
 @ENCODER_REGISTRY.register()
 class ResnetEncoder(nn.Module):
     """
-    Encodes local and global features from ROI and resnet using two separate resent networks.
+        global features only
     """
 
     @configurable
@@ -27,6 +27,8 @@ class ResnetEncoder(nn.Module):
         *,
         global_backbone: Backbone,
         encoder_dim: int,
+        pe_hidden_dim: int,
+        pe_kind: str,
         pixel_mean: Tuple[float],
         pixel_std: Tuple[float],
         weights: str,
@@ -45,16 +47,18 @@ class ResnetEncoder(nn.Module):
         self.register_buffer("pixel_std", torch.tensor(pixel_std).view(-1, 1, 1), False)
         self.normalizer = lambda x: (x - self.pixel_mean) / self.pixel_std
 
-        self.conv = nn.Conv2d(2048, self.encoder_dim, 1)
-
         self.pe_kind = "sine"
         self.max_compressed_size = 100
         self.learn_pe = False
-        self.hidden_dim = 256
+        self.pe_hidden_dim = pe_hidden_dim
+        self.pe_kind = pe_kind
+
         self.create_positional_encoding()
 
+        self.conv = nn.Conv2d(2048, self.encoder_dim, 1)
+
         self.ffn = torch.nn.Sequential(
-            nn.Linear(self.encoder_dim, 256),
+            nn.Linear(self.encoder_dim + self.pe_dim, 256),
             nn.ReLU(),
             nn.Linear(256, 256),
             nn.ReLU(),
@@ -90,10 +94,42 @@ class ResnetEncoder(nn.Module):
         return {
             "global_backbone": global_backbone,
             "encoder_dim": cfg.MODEL.ENCODER.DIMENSION,
+            "pe_kind": cfg.MODEL.ENCODER.POSITIONAL_EMBEDDINGS.TYPE,
+            "pe_hidden_dim": cfg.MODEL.ENCODER.POSITIONAL_EMBEDDINGS.HIDDEN_DIM,
             "pixel_mean": cfg.MODEL.PIXEL_MEAN,
             "pixel_std": cfg.MODEL.PIXEL_STD,
             "weights": cfg.MODEL.ENCODER.WEIGHTS,
         }
+
+    def create_positional_encoding(self):
+        if self.pe_kind == "none":
+            self.pe_dim = 0
+            return
+        if self.pe_kind == "rand":
+            row_embed = torch.rand(
+                self.max_compressed_size, self.pe_hidden_dim // 2
+            )  # MxD/2
+            col_embed = torch.rand(
+                self.max_compressed_size, self.pe_hidden_dim // 2
+            )  # MxD/2
+            self.pe_dim = self.pe_hidden_dim
+        else:
+            assert self.pe_kind == "sine"
+            tmp = torch.arange(self.max_compressed_size).float()  # M
+            freq = torch.arange(self.pe_hidden_dim // 4).float()  # D/4
+            freq = tmp.unsqueeze(-1) / torch.pow(
+                10000, 4 * freq.unsqueeze(0) / self.pe_hidden_dim
+            )  # MxD/4
+            row_embed = torch.cat([freq.sin(), freq.cos()], -1)  # MxD/2
+            col_embed = row_embed
+            self.pe_dim = self.pe_hidden_dim
+
+        if self.learn_pe:
+            self.row_embed = torch.nn.Parameter(row_embed.detach().clone())
+            self.col_embed = torch.nn.Parameter(col_embed.detach().clone())
+        else:
+            self.register_buffer("row_embed", row_embed.detach().clone())
+            self.register_buffer("col_embed", col_embed.detach().clone())
 
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor | Instances]]):
         images = self.preprocess_image(batched_inputs)
@@ -103,18 +139,37 @@ class ResnetEncoder(nn.Module):
         # following line of code assumes that each image in the batch has the same number of proposal_boxees
         num_proposals_per_image = len(batched_inputs[0]["proposal_boxes"])
 
-        global_features = self.global_backbone(images.tensor)["res5"]
+        first_input = batched_inputs[0]
+        if "cache" in first_input:
+            global_features = first_input["cache"]
+        else:
+            global_features = self.global_backbone(images.tensor)["res5"]
 
-        global_features = self.conv(global_features)
+            global_features = self.conv(global_features)
 
-        global_features = global_features.permute(0, 2, 3, 1)
-        global_features = self.ffn(global_features)
-        global_features = global_features.permute(0, 3, 1, 2)
-        global_features = self.pooling(global_features)
+            B, _, H, W = global_features.shape
 
-        global_features = global_features.view(batch_size, 1, -1).repeat(
-            1, num_proposals_per_image, 1
-        )
+            global_features = global_features.permute(0, 2, 3, 1)
+
+            if self.pe_kind != "none":
+                pos = torch.cat(
+                    [
+                        self.col_embed[:W].unsqueeze(0).repeat(H, 1, 1),
+                        self.row_embed[:H].unsqueeze(1).repeat(1, W, 1),
+                    ],
+                    -1,
+                )  # H'xW'xD
+                pos = pos.unsqueeze(0).repeat(B, 1, 1, 1)  # BxH'xW'xD
+                global_features = torch.cat([global_features, pos], -1)  # BxH'xW'x2D
+
+            global_features = self.ffn(global_features)
+            global_features = global_features.permute(0, 3, 1, 2)
+            global_features = self.pooling(global_features)
+
+            global_features = global_features.view(batch_size, 1, -1).repeat(
+                1, num_proposals_per_image, 1
+            )
+            first_input["cache"] = global_features
 
         for input, item_encoding in zip(batched_inputs, global_features):
             input["encoding"] = item_encoding

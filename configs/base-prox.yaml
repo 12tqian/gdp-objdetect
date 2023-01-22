@@ -28,6 +28,9 @@ MODEL:
     NAME: "LocalGlobalEncoder"
     DIMENSION: 256
     WEIGHTS: "https://dl.fbaipublicfiles.com/detectron2/ImageNetPretrained/torchvision/R-50.pkl"
+    POSITIONAL_EMBEDDINGS:
+      TYPE: "none"
+      HIDDEN_DIM: 256
   NETWORK:
     NAME: "ResidualNet"
     INPUT_DIM: 4
@@ -52,7 +55,7 @@ SOLVER:
   BACKBONE_MULTIPLIER: 1.0
   CHECKPOINT_PERIOD: 1000
   STEPS: (350000, 420000)
-  MAX_ITER: 250000
+  MAX_ITER: 450000
   AMP:
     ENABLED: True
   WANDB:

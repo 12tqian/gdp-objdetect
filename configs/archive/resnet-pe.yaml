@@ -1,7 +1,7 @@
 _BASE_: "base-prox.yaml"
 MODEL:
   ENCODER:
-    NAME: ResnetEncoderPE
+    NAME: ResnetEncoder
   NUM_HORIZON: 4
 SOLVER:
   IMS_PER_BATCH: 24
