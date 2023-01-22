@@ -11,6 +11,7 @@ from detectron2.structures import Boxes, ImageList, Instances
 from detectron2.utils.events import get_event_storage
 from detectron2.utils.logger import log_first_n
 from torch import nn
+import torch.nn.functional as F
 
 from .registry import (
     ENCODER_REGISTRY,
@@ -283,13 +284,16 @@ class ProxModel(nn.Module):
             height = bi.get("height", image_size[0])
             width = bi.get("width", image_size[1])
             # breakpoint()
-            bi["instances"] = Instances(image_size)
-            bi["instances"].pred_boxes = Boxes(bi["pred_boxes"])
-            bi["instances"].scores = torch.sigmoid(bi["class_logits"]) # all shape BxC TODO: This seems like what diffusiondet does but make sure
-            bi["instances"].pred_classes = torch.argmax(bi["class_logits"], dim=-1) # all shape B
-            print(bi["instances"].pred_classes.shape)
-            r = detector_postprocess(bi["instances"], height, width)
+            result = Instances(image_size)
+            result.pred_boxes = Boxes(bi["pred_boxes"])
+            result.scores = F.softmax(bi["class_logits"], dim=-1) # all shape BxC TODO: This seems like what diffusiondet does but make sure
+            result.pred_classes = torch.argmax(bi["class_logits"], dim=-1) # all shape B
+
+            # print(bi["instances"].pred_classes.shape)
+            r = detector_postprocess(result, height, width)
+
             processed_results.append({"instances": r})
+            
         return processed_results
 
     def visualize_training(self, batched_inputs, proposals):

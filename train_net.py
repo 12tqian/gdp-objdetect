@@ -181,21 +181,21 @@ def do_train(cfg, model, resume=False):
             if do_log:
                 lst = name.split("/")
                 file_name = lst[-3] + "/" + lst[-2] + "/" + lst[-1]
-                wandb.log(
-                    {
-                        "loss": sum_loss.item(),
-                        file_name: image_list,
-                        "iteration": iteration,
-                    }
-                )
-            else:
-                wandb.log(
-                    {
-                        "loss": sum_loss.item(),
-                        # "epoch": iteration // len(data_loader.dataset)+ 1,
-                        "iteration": iteration,
-                    }
-                )
+            #     wandb.log(
+            #         {
+            #             "loss": sum_loss.item(),
+            #             file_name: image_list,
+            #             "iteration": iteration,
+            #         }
+            #     )
+            # else:
+            #     wandb.log(
+            #         {
+            #             "loss": sum_loss.item(),
+            #             # "epoch": iteration // len(data_loader.dataset)+ 1,
+            #             "iteration": iteration,
+            #         }
+            #     )
 
         assert torch.isfinite(sum_loss).all()
 
@@ -240,7 +240,8 @@ def main(args):
     cfg = setup(args)
 
     if comm.is_main_process():
-        wandb.init(project="gdp-objdetect", config=cfg)
+        # wandb.init(project="gdp-objdetect", config=cfg)
+        pass
 
     model = build_model(cfg)
     logger.info("Model:\n{}".format(model))

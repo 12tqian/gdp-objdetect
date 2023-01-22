@@ -53,7 +53,7 @@ def add_proxmodel_cfg(cfg):
     cfg.SOLVER.PROFILE = False
 
     cfg.DATASETS.TRAIN_COUNT = 100
-    cfg.DATASETS.NUM_CLASSES = 80
+    cfg.DATASETS.NUM_CLASSES = 90
 
     cfg.SOLVER.WANDB = CN()
     cfg.SOLVER.WANDB.ENABLE = True

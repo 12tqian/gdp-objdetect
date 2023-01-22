@@ -1,8 +1,16 @@
 _BASE_: "local-global.yaml"
 SOLVER:
   MAX_ITER: 10
+  IMS_PER_BATCH: 2
+  WANDB:
+    ENABLE: False
 
 DATASETS:
   TRAIN: ("coco_2017_train_1000small",)
 
 OUTPUT_DIR: "./output/local-global-test-eval"
+
+MODEL:
+  ENCODER:
+    NAME: LocalGlobalEncoder
+  NUM_HORIZON: 2

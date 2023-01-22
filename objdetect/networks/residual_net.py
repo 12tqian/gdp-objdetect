@@ -162,16 +162,21 @@ class ResidualNet(nn.Module):
                 self.time_projections.append(ProjectionLayer(input_dim + position_dim, input_dim))
 
 
-        cls_module = list()
-        for _ in range(3): # num_cls
-            cls_module.append(nn.Linear(self.feature_dim, self.feature_dim, False))
-            cls_module.append(nn.LayerNorm(self.feature_dim))
-            cls_module.append(nn.ReLU(inplace=True))
-        self.cls_module = nn.ModuleList(cls_module)
+        self.cls_module = nn.Sequential()
+        for _ in range(1):
+            self.cls_module.append(nn.Linear(self.input_dim, self.input_dim, False))
+            self.cls_module.append(nn.LayerNorm(self.input_dim))
+            self.cls_module.append(nn.ReLU(inplace=True))
 
-        self.class_logits = nn.Linear(self.feature_dim, num_classes)
+        self.box_module = nn.Sequential()
+        for _ in range(1):
+            self.box_module.append(nn.Linear(self.input_dim, self.input_dim, False))
+            self.box_module.append(nn.LayerNorm(self.input_dim))
+            self.box_module.append(nn.ReLU(inplace=True))
 
-        
+        self.class_projection = nn.Linear(self.input_dim, num_classes)
+        self.box_projection = nn.Linear(self.input_dim, 4)
+
 
     @classmethod
     def from_config(cls, cfg):
@@ -200,29 +205,26 @@ class ResidualNet(nn.Module):
             F = F.unsqueeze(1).expand(-1, B, -1)
         for i, block in enumerate(self.blocks):
             if self.use_t:
-                t = torch.stack([input["prior_t"] for input in batched_inputs])
-                half_dim = self.position_dim // 2
-                embeddings = math.log(10000) / (half_dim - 1)
-                embeddings = torch.exp(torch.arange(half_dim, device=x.device) * -embeddings) # (1, half_dim)
-                embeddings = t[..., None] * embeddings[None, :]
-                embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1) # (shape(t), input_dim)
-                x = torch.cat((x, embeddings), dim =-1)
-                x = self.time_projections[i](x)
+                # t = torch.stack([input["prior_t"] for input in batched_inputs])
+                # half_dim = self.position_dim // 2
+                # embeddings = math.log(10000) / (half_dim - 1)
+                # embeddings = torch.exp(torch.arange(half_dim, device=x.device) * -embeddings) # (1, half_dim)
+                # embeddings = t[..., None] * embeddings[None, :]
+                # embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1) # (shape(t), input_dim)
+                # x = torch.cat((x, embeddings), dim =-1)
+                # x = self.time_projections[i](x)
+                pass
 
             x = block(F, x)
 
+        cls_feature = self.cls_module(x)
+        box_feature = self.box_module(x)
+        batched_boxes = self.box_projection(box_feature)
 
-        for bi, boxes in zip(batched_inputs, x):
-            bi["pred_boxes"] = boxes
+        batched_class_logits = self.class_projection(cls_feature) # shape N, B, C
         
-        cls_feature = F.clone()
-        for cls_layer in self.cls_module:
-            cls_feature = cls_layer(cls_feature)
-        class_logits = self.class_logits(cls_feature) # shape N, B, C
-        
-        for bi, class_logit in zip(batched_inputs, class_logits):
+        for bi, class_logit, boxes in zip(batched_inputs, batched_class_logits, batched_boxes):
             bi["class_logits"] = class_logit
-
-
+            bi["pred_boxes"] = boxes
         
         return batched_inputs
