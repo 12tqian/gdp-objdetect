@@ -21,4 +21,4 @@ DATASETS:
   TEST:  ("synthetic_val_10",)
 AUGMENTATION:
   ENABLED: False
-OUTPUT_DIR: "./output/synthetic-resnet-sine"
+OUTPUT_DIR: "./output/synthetic-resnet-sine-1e-4"
