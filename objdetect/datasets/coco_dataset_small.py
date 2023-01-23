@@ -27,3 +27,5 @@ DatasetCatalog.register("coco_2017_val_small", coco_small_val_function)
 from detectron2.data import MetadataCatalog
 MetadataCatalog.get("coco_2017_val_small").evaluator_type = "coco"
 MetadataCatalog.get("coco_2017_val_small").thing_classes = MetadataCatalog.get("coco_2017_val").thing_classes
+MetadataCatalog.get("coco_2017_val_small").thing_dataset_id_to_contiguous_id = MetadataCatalog.get("coco_2017_val").thing_dataset_id_to_contiguous_id
+MetadataCatalog.get("coco_2017_train_1000small").thing_dataset_id_to_contiguous_id = MetadataCatalog.get("coco_2017_train").thing_dataset_id_to_contiguous_id

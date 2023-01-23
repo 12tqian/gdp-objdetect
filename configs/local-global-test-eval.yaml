@@ -1,13 +1,13 @@
 _BASE_: "local-global.yaml"
 SOLVER:
-  MAX_ITER: 10
+  MAX_ITER: 100
   IMS_PER_BATCH: 2
   WANDB:
     ENABLE: False
 
 DATASETS:
-  TRAIN: ("coco_2017_train_1000small",)
-  TEST: ("coco_2017_val_small",)
+  TRAIN: ("coco_2017_train",)
+  TEST: ("coco_2017_val",)
 
 OUTPUT_DIR: "./output/local-global-test-eval"
 
