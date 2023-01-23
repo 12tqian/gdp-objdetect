@@ -18,7 +18,7 @@ import pickle
 @ENCODER_REGISTRY.register()
 class ResnetEncoder(nn.Module):
     """
-        global features only
+    global features only
     """
 
     @configurable

@@ -10,6 +10,8 @@ import numpy as np
 
 
 ROOT = "/mnt/tcqian/danielxu/gdp-objdetect/"
+
+
 def create_dataset(
     dataset_train_size, dataset_val_size, dataset_name, max_num_objects=10
 ):
@@ -26,7 +28,8 @@ def create_dataset(
 
     save_dataset(
         dataset_dict=dataset_train_dict,
-        instances_path=ROOT + f"datasets/{dataset_name}/annotations/instances_train.json",
+        instances_path=ROOT
+        + f"datasets/{dataset_name}/annotations/instances_train.json",
     )
 
     dataset_val_dict = []
@@ -54,9 +57,9 @@ def create_image(image_id, num_objects, dataset_path, width=640, height=640):
     image = Image.new("RGB", (640, 640))
     draw = ImageDraw.Draw(image)
     image_dict = {}
-    image_dict[
-        "file_name"
-    ] = ROOT + f"datasets/{dataset_path}/{str(image_id).zfill(6)}.jpg"
+    image_dict["file_name"] = (
+        ROOT + f"datasets/{dataset_path}/{str(image_id).zfill(6)}.jpg"
+    )
     image_dict["height"] = height
     image_dict["width"] = width
     image_dict["image_id"] = image_id
@@ -82,13 +85,11 @@ def create_image(image_id, num_objects, dataset_path, width=640, height=640):
         object_dict["bbox_mode"] = BoxMode.XYXY_ABS
         object_dict["category_id"] = 0
         image_dict["annotations"].append(object_dict)
-        color=tuple(np.random.choice(range(256), size=3))
+        color = tuple(np.random.choice(range(256), size=3))
         draw.ellipse((x1, y1, x2, y2), fill=color, outline=color)  # x1,y1,x2,y2
 
     image = image.convert("RGB")
-    image.save(
-        ROOT + f"datasets/{dataset_path}/{str(image_id).zfill(6)}.jpg"
-    )
+    image.save(ROOT + f"datasets/{dataset_path}/{str(image_id).zfill(6)}.jpg")
     # image.save(f'../synthetic_dataset/{str(image_id).zfill(6)}.jpg')
     return image_dict
 

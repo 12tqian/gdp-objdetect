@@ -64,9 +64,9 @@ def update_config_with_dict(cur_cfg: CN, cur_dict: Dict):
                 cur_cfg.update({k: literal_eval(str(v))})
             except:
                 cur_cfg.update({k: v})
-                
+
+
 def add_proxmodel_cfg(cfg, config_file=None):
     if config_file is not None:
         config_dict = load_yaml_with_base(config_file)
         update_config_with_dict(cfg, config_dict)
-        

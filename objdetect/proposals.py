@@ -96,7 +96,7 @@ class NoisedGroundTruth(nn.Module):
                 )  # B,
                 bi["original_gt"] = sampled_indices
 
-                sampled_gt_boxes = gt_boxes[sampled_indices] / scale # Bx4
+                sampled_gt_boxes = gt_boxes[sampled_indices] / scale  # Bx4
 
                 if self.use_t:
                     t = torch.randint(1000, size=(num_proposal_boxes,))  # B,
@@ -130,7 +130,7 @@ class NoisedGroundTruth(nn.Module):
             if self.use_t:
                 bi["proposal_boxes"] = prior
                 bi["prior_t"] = prior_t
-                # TODO: 
+                # TODO:
                 # do something with prior_t, this has t attached
                 # maybe at some point add in the gt box index here
             else:

@@ -63,11 +63,16 @@ class ResnetEncoderPEFlatten(nn.Module):
 
         self.pooler_resolution = 20
 
-        self.pooling = nn.AdaptiveAvgPool2d((self.pooler_resolution, self.pooler_resolution))
+        self.pooling = nn.AdaptiveAvgPool2d(
+            (self.pooler_resolution, self.pooler_resolution)
+        )
 
         self.ending = torch.nn.Sequential(
             nn.ReLU(),
-            nn.Linear(self.encoder_dim * self.pooler_resolution * self.pooler_resolution, self.encoder_dim)
+            nn.Linear(
+                self.encoder_dim * self.pooler_resolution * self.pooler_resolution,
+                self.encoder_dim,
+            ),
         )
 
         self.path_manager: PathManager = PathManager()

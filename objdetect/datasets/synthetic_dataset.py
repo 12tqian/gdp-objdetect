@@ -7,40 +7,65 @@ from detectron2.modeling import build_backbone
 
 
 def synthetic_train_function():
-    with open(f'/mnt/tcqian/danielxu/gdp-objdetect/datasets/synthetic_dataset/annotations/instances_train.json', 'r') as fp:
+    with open(
+        f"/mnt/tcqian/danielxu/gdp-objdetect/datasets/synthetic_dataset/annotations/instances_train.json",
+        "r",
+    ) as fp:
         dataset = json.load(fp)
 
     return dataset
+
 
 def synthetic_val_function():
-    with open(f'/mnt/tcqian/danielxu/gdp-objdetect/datasets/synthetic_dataset/annotations/instances_val.json', 'r') as fp:
+    with open(
+        f"/mnt/tcqian/danielxu/gdp-objdetect/datasets/synthetic_dataset/annotations/instances_val.json",
+        "r",
+    ) as fp:
         dataset = json.load(fp)
 
     return dataset
+
 
 def synthetic_train_10_function():
-    with open(f'/mnt/tcqian/danielxu/gdp-objdetect/datasets/synthetic_dataset_10/annotations/instances_train.json', 'r') as fp:
+    with open(
+        f"/mnt/tcqian/danielxu/gdp-objdetect/datasets/synthetic_dataset_10/annotations/instances_train.json",
+        "r",
+    ) as fp:
         dataset = json.load(fp)
 
     return dataset
+
 
 def synthetic_val_10_function():
-    with open(f'/mnt/tcqian/danielxu/gdp-objdetect/datasets/synthetic_dataset_10/annotations/instances_val.json', 'r') as fp:
+    with open(
+        f"/mnt/tcqian/danielxu/gdp-objdetect/datasets/synthetic_dataset_10/annotations/instances_val.json",
+        "r",
+    ) as fp:
         dataset = json.load(fp)
 
     return dataset
+
 
 def synthetic_train_1_function():
-    with open(f'/mnt/tcqian/danielxu/gdp-objdetect/datasets/synthetic_dataset_1/annotations/instances_train.json', 'r') as fp:
+    with open(
+        f"/mnt/tcqian/danielxu/gdp-objdetect/datasets/synthetic_dataset_1/annotations/instances_train.json",
+        "r",
+    ) as fp:
         dataset = json.load(fp)
 
     return dataset
 
+
 def synthetic_val_1_function():
-    with open(f'/mnt/tcqian/danielxu/gdp-objdetect/datasets/synthetic_dataset_1/annotations/instances_val.json', 'r') as fp:
+    with open(
+        f"/mnt/tcqian/danielxu/gdp-objdetect/datasets/synthetic_dataset_1/annotations/instances_val.json",
+        "r",
+    ) as fp:
         dataset = json.load(fp)
 
+
 from detectron2.data import DatasetCatalog
+
 DatasetCatalog.register("synthetic_train", synthetic_train_function)
 DatasetCatalog.register("synthetic_val", synthetic_val_function)
 
@@ -51,6 +76,7 @@ DatasetCatalog.register("synthetic_train_1", synthetic_train_10_function)
 DatasetCatalog.register("synthetic_val_1", synthetic_val_10_function)
 
 from detectron2.data import MetadataCatalog
+
 MetadataCatalog.get("synthetic_val").evaluator_type = "coco"
 MetadataCatalog.get("synthetic_val").thing_classes = ["circle"]
 

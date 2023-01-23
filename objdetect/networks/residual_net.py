@@ -159,7 +159,6 @@ class ResidualNet(nn.Module):
                     ProjectionLayer(input_dim + position_dim, input_dim)
                 )
 
-
         self.cls_module = nn.Sequential()
         for _ in range(1):
             self.cls_module.append(nn.Linear(self.input_dim, self.input_dim, False))
@@ -174,7 +173,6 @@ class ResidualNet(nn.Module):
 
         self.class_projection = nn.Linear(self.input_dim, num_classes)
         self.box_projection = nn.Linear(self.input_dim, 4)
-
 
     @classmethod
     def from_config(cls, cfg):
@@ -222,10 +220,12 @@ class ResidualNet(nn.Module):
         box_feature = self.box_module(x)
         batched_boxes = self.box_projection(box_feature)
 
-        batched_class_logits = self.class_projection(cls_feature) # shape N, B, C
-        
-        for bi, class_logit, boxes in zip(batched_inputs, batched_class_logits, batched_boxes):
+        batched_class_logits = self.class_projection(cls_feature)  # shape N, B, C
+
+        for bi, class_logit, boxes in zip(
+            batched_inputs, batched_class_logits, batched_boxes
+        ):
             bi["class_logits"] = class_logit
             bi["pred_boxes"] = boxes
-        
+
         return batched_inputs

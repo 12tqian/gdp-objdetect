@@ -22,8 +22,8 @@ class BoxDistanceLoss(nn.Module):
     def from_config(cls, cfg):
         return {
             "box_distance_type": cfg.MODEL.TRANSPORT_LOSS.BOX_DISTANCE_TYPE,
-            "transport_lambda": cfg.MODEL.TRANSPORT_LOSS.TRANSPORT_LAMBDA
-            }
+            "transport_lambda": cfg.MODEL.TRANSPORT_LOSS.TRANSPORT_LAMBDA,
+        }
 
     def forward(self, batched_inputs):
         proposal_boxes = torch.stack([bi["proposal_boxes"] for bi in batched_inputs])
@@ -268,7 +268,7 @@ class ClassificationLoss(nn.Module):
 
         flattened_logits = class_logits.flatten(0, 1)
         flattened_classes = target_gt_classes.flatten(0, 1)
- 
+
         loss = F.cross_entropy(
             flattened_logits, flattened_classes, reduction="none"
         )  # NA
@@ -282,9 +282,11 @@ class ClassificationLoss(nn.Module):
 
         # breakpoint()
 
-        gt_is_not_empty_mask = torch.tensor(
-            gt_is_not_empty_mask, dtype=bool, device=device
-        ).unsqueeze(-1).repeat(1, A)
+        gt_is_not_empty_mask = (
+            torch.tensor(gt_is_not_empty_mask, dtype=bool, device=device)
+            .unsqueeze(-1)
+            .repeat(1, A)
+        )
 
         # breakpoint()
 
