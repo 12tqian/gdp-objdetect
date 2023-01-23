@@ -106,7 +106,13 @@ def build_optimizer(cfg, model):
     return optimizer
 
 
-def do_train(cfg, model, accelerator: Accelerator, objdetect_logger: ObjdetectLogger, resume=False):
+def do_train(
+    cfg,
+    model,
+    accelerator: Accelerator,
+    objdetect_logger: ObjdetectLogger,
+    resume=False,
+):
     model.train()
 
     # optimizer and scheduler
@@ -162,7 +168,7 @@ def do_train(cfg, model, accelerator: Accelerator, objdetect_logger: ObjdetectLo
                     batched_inputs = model(batched_inputs)
 
                     objdetect_logger.during_iteration(batched_inputs)
-                    
+
                     for bi in batched_inputs:
                         sum_loss = sum_loss + bi["loss"]
 
@@ -178,8 +184,8 @@ def do_train(cfg, model, accelerator: Accelerator, objdetect_logger: ObjdetectLo
                         batched_inputs,
                         {
                             "loss": sum_loss.item(),
-                            "lr": optimizer.param_groups[0]["lr"]
-                        }
+                            "lr": optimizer.param_groups[0]["lr"],
+                        },
                     )
                 accelerator.backward(sum_loss)
                 optimizer.step()

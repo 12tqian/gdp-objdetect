@@ -5,6 +5,7 @@ from objdetect.utils.wandb_utils import get_logged_batched_input_wandb
 from datetime import datetime
 import wandb
 
+
 class ObjdetectLogger:
     @configurable
     def __init__(
@@ -17,24 +18,23 @@ class ObjdetectLogger:
         self.wandb_enabled = wandb_enabled
         self.wandb_log_frequency = wandb_log_frequency
         self.cfg = cfg
-        
+
     @classmethod
     def from_config(cls, cfg):
         return {
             "wandb_log_frequency": cfg.SOLVER.WANDB.ENABLED,
             "wandb_enabled": cfg.SOLVER.WANDB.LOG_FREQUENCY,
-            "cfg": cfg
+            "cfg": cfg,
         }
-    
+
     def maybe_init_wandb(self):
         if self.wandb_enabled:
             wandb.init(project="gdp-objdetect", config=self.cfg)
-    
+
     def begin_training(self, begin_iter, end_iter):
         self.begin_iter = begin_iter
         self.cur_iter = begin_iter
         self.end_iter = end_iter
-    
 
     def log_images(self):
         return self.wandb_enabled and self.cur_iter % self.wandb_log_frequency == 0
@@ -51,7 +51,7 @@ class ObjdetectLogger:
                 get_logged_batched_input_wandb(batched_inputs[self.log_idx])
             )
 
-    def end_iteration(self, batched_inputs = None, log_objects = {}):
+    def end_iteration(self, batched_inputs=None, log_objects={}):
         loss = log_objects["loss"]
         if self.wandb_enabled:
             log_dict = {
@@ -70,7 +70,5 @@ class ObjdetectLogger:
         ):
             lr = log_objects["lr"]
             cur_time = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-            tqdm.write(
-                f"[{cur_time}]: iter: {self.cur_iter}   loss: {loss}   lr: {lr}"
-            )
+            tqdm.write(f"[{cur_time}]: iter: {self.cur_iter}   loss: {loss}   lr: {lr}")
         self.cur_iter += 1
