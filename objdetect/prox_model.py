@@ -192,7 +192,9 @@ class ProxModel(nn.Module):
                 The :class:`Instances` object has the following keys:
                 "pred_boxes", "pred_classes", "scores", "pred_masks", "pred_keypoints"
         """
-
+        if "loss_dict" not in batched_inputs[0]:
+            for bi in batched_inputs:
+                bi["loss_dict"] = {}
         if not self.training:
             return self.inference(batched_inputs)
 
@@ -218,7 +220,7 @@ class ProxModel(nn.Module):
 
         results = self.detection_loss(results)
         results = self.transport_loss(results)
-        results = self.classification_loss(results)
+        # results = self.classification_loss(results)
 
         self.denormalize_boxes(batched_inputs)
 

@@ -52,12 +52,11 @@ class ObjdetectLogger:
             )
 
     def end_iteration(self, batched_inputs=None, log_objects={}):
-        loss = log_objects["total_loss"]
         if self.wandb_enabled:
             log_dict = {
-                "loss": loss,
                 "iteration": self.cur_iter,
             }
+            log_dict.update(log_objects)
 
             if self.log_images():
                 image_file_name = "/".join(self.image_name.split("/")[-3:])
@@ -65,10 +64,12 @@ class ObjdetectLogger:
 
             wandb.log(log_dict)
 
+        loss = log_objects["total_loss"]
+
         if self.cur_iter - self.begin_iter > 5 and (
             (self.cur_iter + 1) % 20 == 0 or self.cur_iter == self.end_iter - 1
         ):
-            lr = log_objects["lr"]
+            lr = log_dict["lr"]
             cur_time = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
             tqdm.write(f"[{cur_time}]: iter: {self.cur_iter}   loss: {loss}   lr: {lr}")
         self.cur_iter += 1

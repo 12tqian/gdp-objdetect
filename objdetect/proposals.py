@@ -44,16 +44,11 @@ class UniformRandomBoxes(nn.Module):
                   See :meth:`postprocess` for details.
         """
         for bi in batched_inputs:
+            h, w = bi["image"].shape[-2:]
+            scale = torch.Tensor([w, h, w, h])
             proposal_boxes = torch.rand(num_proposal_boxes, 4)
             proposal_boxes = box_cxcywh_to_xyxy(proposal_boxes)
-            bi["proposal_boxes"] = proposal_boxes * torch.Tensor(
-                [
-                    bi["width"],
-                    bi["height"],
-                    bi["width"],
-                    bi["height"],
-                ]
-            )
+            bi["proposal_boxes"] = proposal_boxes * scale
         return batched_inputs
 
 
@@ -82,7 +77,7 @@ class NoisedGroundTruth(nn.Module):
             gt_boxes = bi["instances"].gt_boxes.tensor
             scale = torch.Tensor(
                 [
-                    bi["width"],
+                    bi["width"],  # TODO: THIS IS WRONG
                     bi["height"],
                     bi["width"],
                     bi["height"],

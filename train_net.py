@@ -164,6 +164,7 @@ def do_train(
             with accelerator.accumulate(model):
                 transport_loss = torch.zeros(1, device=model.device)
                 detection_loss = torch.zeros(1, device=model.device)
+                loss_dict = {}
                 for h in range(cfg.MODEL.NUM_HORIZON):
 
                     batched_inputs = model(batched_inputs)
@@ -171,31 +172,37 @@ def do_train(
                     objdetect_logger.during_iteration(batched_inputs)
 
                     for bi in batched_inputs:
-                        transport_loss = transport_loss + bi["transport_loss"]
-                        detection_loss = detection_loss + bi["transport_loss"]
+                        for k, v in bi["loss_dict"].items():
+                            if k in loss_dict:
+                                loss_dict[k] = loss_dict[k] + v
+                            else:
+                                loss_dict[k] = torch.zeros(1, device=model.device)
 
                     for bi in batched_inputs:
                         bi["proposal_boxes"] = bi["pred_boxes"].detach()
 
-                transport_loss = (
-                    transport_loss.mean() / len(batched_inputs) / cfg.MODEL.NUM_HORIZON
-                )
-                detection_loss = (
-                    detection_loss.mean() / len(batched_inputs) / cfg.MODEL.NUM_HORIZON
-                )
-                total_loss = transport_loss + detection_loss
+                total_loss = torch.zeros(1, device=model.device)
+                for k in loss_dict:
+                    loss_dict[k] = (
+                        loss_dict[k].mean()
+                        / len(batched_inputs)
+                        / cfg.MODEL.NUM_HORIZON
+                    )
+                    total_loss = total_loss + loss_dict[k]
 
                 assert torch.isfinite(total_loss).all()
 
                 if accelerator.is_main_process:
-                    objdetect_logger.end_iteration(
-                        batched_inputs,
+                    log_dict = loss_dict
+                    log_dict.update(
                         {
                             "total_loss": total_loss.item(),
-                            "detection_loss": detection_loss.item(),
-                            "transport_loss": transport_loss.item(),
                             "lr": optimizer.param_groups[0]["lr"],
-                        },
+                        }
+                    )
+                    objdetect_logger.end_iteration(
+                        batched_inputs,
+                        log_dict,
                     )
                 accelerator.backward(total_loss)
                 optimizer.step()

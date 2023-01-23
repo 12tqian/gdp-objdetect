@@ -215,12 +215,25 @@ class LocalGlobalEncoder(nn.Module):
 
         num_proposals_per_image = len(batched_inputs[0]["proposal_boxes"])
 
-        first_input = batched_inputs[0]
-        if "cache" in first_input:
-            fpn_features_dict, global_features = first_input["cache"]
+        if "fpn_features_dict" in batched_inputs[0]:
+            fpn_features_dict = {}
+            for f in self.fpn_in_features:
+                fpn_features_dict[f] = torch.stack(
+                    [bi["fpn_features_dict"][f] for bi in batched_inputs]
+                )
         else:
             fpn_features_dict = self.local_backbone(images.tensor)
-            global_features = self.global_backbone(images.tensor)["res5"]
+            for bi in batched_inputs:
+                bi["fpn_features_dict"] = {}
+            for f in self.fpn_in_features:
+                for bi, ff in zip(batched_inputs, fpn_features_dict[f]):
+                    bi["fpn_features_dict"][f] = ff
+
+        if "global_features" in batched_inputs[0]:
+            global_features = torch.stack(
+                [bi["global_features"] for bi in batched_inputs]
+            )
+        else:
             global_features = self.global_backbone(images.tensor)["res5"]
             global_features = self.conv_global(global_features)
             B, _, H, W = global_features.shape
@@ -242,7 +255,8 @@ class LocalGlobalEncoder(nn.Module):
             global_features = global_features.view(batch_size, 1, -1).repeat(
                 1, num_proposals_per_image, 1
             )
-            first_input["cache"] = (fpn_features_dict, global_features)
+            for bi, gf in zip(batched_inputs, global_features):
+                bi["global_features"] = gf
 
         fpn_features = [
             fpn_features_dict[feature_name] for feature_name in self.fpn_in_features

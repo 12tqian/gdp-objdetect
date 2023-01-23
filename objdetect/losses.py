@@ -42,10 +42,11 @@ class BoxDistanceLoss(nn.Module):
 
         for bi, d in zip(batched_inputs, distances):
             assert torch.isfinite(d).all()
-            if "transport_loss" in bi:
-                bi["transport_loss"] = bi["transport_loss"] + d
+            loss_dict = bi["loss_dict"]
+            if "transport_loss" in loss_dict:
+                loss_dict["transport_loss"] = loss_dict["transport_loss"] + d
             else:
-                bi["transport_loss"] = d
+                loss_dict["transport_loss"] = d
         return batched_inputs
 
 
@@ -85,11 +86,11 @@ class BoxProjectionLoss(nn.Module):
         gt_masks = torch.zeros([N, max_gt_boxes], dtype=torch.bool).to(device)
 
         for i in range(N):
-            pred_boxes = batched_inputs[i]["instances"].gt_boxes.tensor
+            gt_boxes = batched_inputs[i]["instances"].gt_boxes.tensor
 
-            if pred_boxes.shape[0] > 0:
-                gt_padded[i, : pred_boxes.shape[0], :].copy_(pred_boxes)
-                gt_masks[i, : pred_boxes.shape[0]] = True
+            if gt_boxes.shape[0] > 0:
+                gt_padded[i, : gt_boxes.shape[0], :].copy_(gt_boxes)
+                gt_masks[i, : gt_boxes.shape[0]] = True
 
         # pred_boxes is NxAx4
         # gt_padded NxBx4
@@ -108,10 +109,11 @@ class BoxProjectionLoss(nn.Module):
 
         for bi, lo in zip(batched_inputs, loss):
             assert torch.isfinite(lo).all()
-            if "detection_loss" in bi:
-                bi["detection_loss"] = bi["detection_loss"] + lo
+            loss_dict = bi["loss_dict"]
+            if "detection_loss" in loss_dict:
+                loss_dict["detection_loss"] = loss_dict["detection_loss"] + lo
             else:
-                bi["detection_loss"] = lo
+                loss_dict["detection_loss"] = lo
 
         return batched_inputs
 
@@ -167,10 +169,11 @@ class BoxProjectionOriginLoss(nn.Module):
 
         for bi, lo in zip(batched_inputs, loss):
             assert torch.isfinite(lo).all()
-            if "loss" in bi:
-                bi["loss"] = bi["loss"] + lo
+            loss_dict = bi["loss_dict"]
+            if "origin_loss" in loss_dict:
+                loss_dict["origin_loss"] = loss_dict["origin_loss"] + lo
             else:
-                bi["loss"] = lo
+                loss_dict["origin_loss"] = lo
 
         return batched_inputs
 
@@ -298,10 +301,11 @@ class ClassificationLoss(nn.Module):
 
         for bi, lo in zip(batched_inputs, loss):
             assert torch.isfinite(lo).all()
-            if "loss" in bi:
-                bi["loss"] = bi["loss"] + lo
+            loss_dict = bi["loss_dict"]
+            if "classification_loss" in loss_dict:
+                loss_dict["classification_loss"] = loss_dict["classification_loss"] + lo
             else:
-                bi["loss"] = lo
+                loss_dict["classification_loss"] = lo
 
         # breakpoint()
 

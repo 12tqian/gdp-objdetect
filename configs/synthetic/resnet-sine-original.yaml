@@ -9,18 +9,20 @@ MODEL:
     POSITIONAL_EMBEDDINGS:
       TYPE: "sine"
   TRANSPORT_LOSS:
-    TRANSPORT_LAMBDA: 1.0
+    TRANSPORT_LAMBDA: 4.0
 SOLVER:
-  IMS_PER_BATCH: 8
-  BASE_LR: 0.0001
+  IMS_PER_BATCH: 9
+  BASE_LR: 0.000001
   WANDB:
     ENABLED: True
     LOG_FREQUENCY: 20
-  AMP:
-    ENABLED: False
+  OPTIMIZER: "AdamW"
+  WEIGHT_DECAY: 0.0
+  WARMUP_ITERS: 1
+
 DATASETS:
   TRAIN: ("synthetic_train_10",)
   TEST:  ("synthetic_val_10",)
-AUGMENTATION:
-  ENABLED: False
+  AUGMENTATION:
+    ENABLED: True
 OUTPUT_DIR: "./output/synthetic-resnet-sine-original"

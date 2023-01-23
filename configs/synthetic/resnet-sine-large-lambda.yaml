@@ -19,6 +19,6 @@ SOLVER:
 DATASETS:
   TRAIN: ("synthetic_train_10",)
   TEST:  ("synthetic_val_10",)
-AUGMENTATION:
-  ENABLED: False
+  AUGMENTATION:
+    ENABLED: False
 OUTPUT_DIR: "./output/synthetic-resnet-sine-1e-4"

@@ -84,7 +84,6 @@ class ResnetEncoder(nn.Module):
 
         state_dict.pop("stem.fc.weight")
         state_dict.pop("stem.fc.bias")
-
         self.global_backbone.load_state_dict(state_dict)
 
     @classmethod
@@ -139,10 +138,9 @@ class ResnetEncoder(nn.Module):
         # following line of code assumes that each image in the batch has the same number of proposal_boxees
         num_proposals_per_image = len(batched_inputs[0]["proposal_boxes"])
 
-        if "global_features" in batched_inputs[0]:
-            global_features = torch.stack(
-                [bi["global_features"] for bi in batched_inputs]
-            )
+        first_input = batched_inputs[0]
+        if "cache" in first_input:
+            global_features = first_input["cache"]
         else:
             global_features = self.global_backbone(images.tensor)["res5"]
 
@@ -170,8 +168,7 @@ class ResnetEncoder(nn.Module):
             global_features = global_features.view(batch_size, 1, -1).repeat(
                 1, num_proposals_per_image, 1
             )
-            for bi, gf in zip(batched_inputs, global_features):
-                bi["global_features"] = gf
+            first_input["cache"] = global_features
 
         for input, item_encoding in zip(batched_inputs, global_features):
             input["encoding"] = item_encoding
