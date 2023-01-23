@@ -52,7 +52,7 @@ class ObjdetectLogger:
             )
 
     def end_iteration(self, batched_inputs=None, log_objects={}):
-        loss = log_objects["loss"]
+        loss = log_objects["total_loss"]
         if self.wandb_enabled:
             log_dict = {
                 "loss": loss,

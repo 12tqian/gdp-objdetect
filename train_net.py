@@ -162,7 +162,8 @@ def do_train(
         ):
             objdetect_logger.begin_iteration(batched_inputs)
             with accelerator.accumulate(model):
-                sum_loss = torch.zeros(1, device=model.device)
+                transport_loss = torch.zeros(1, device=model.device)
+                detection_loss = torch.zeros(1, device=model.device)
                 for h in range(cfg.MODEL.NUM_HORIZON):
 
                     batched_inputs = model(batched_inputs)
@@ -170,24 +171,33 @@ def do_train(
                     objdetect_logger.during_iteration(batched_inputs)
 
                     for bi in batched_inputs:
-                        sum_loss = sum_loss + bi["loss"]
+                        transport_loss = transport_loss + bi["transport_loss"]
+                        detection_loss = detection_loss + bi["transport_loss"]
 
                     for bi in batched_inputs:
                         bi["proposal_boxes"] = bi["pred_boxes"].detach()
 
-                sum_loss = sum_loss.mean() / len(batched_inputs) / cfg.MODEL.NUM_HORIZON
+                transport_loss = (
+                    transport_loss.mean() / len(batched_inputs) / cfg.MODEL.NUM_HORIZON
+                )
+                detection_loss = (
+                    detection_loss.mean() / len(batched_inputs) / cfg.MODEL.NUM_HORIZON
+                )
+                total_loss = transport_loss + detection_loss
 
-                assert torch.isfinite(sum_loss).all()
+                assert torch.isfinite(total_loss).all()
 
                 if accelerator.is_main_process:
                     objdetect_logger.end_iteration(
                         batched_inputs,
                         {
-                            "loss": sum_loss.item(),
+                            "total_loss": total_loss.item(),
+                            "detection_loss": detection_loss.item(),
+                            "transport_loss": transport_loss.item(),
                             "lr": optimizer.param_groups[0]["lr"],
                         },
                     )
-                accelerator.backward(sum_loss)
+                accelerator.backward(total_loss)
                 optimizer.step()
                 if not accelerator.optimizer_step_was_skipped:
                     scheduler.step()

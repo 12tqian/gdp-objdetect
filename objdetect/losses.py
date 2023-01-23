@@ -42,10 +42,10 @@ class BoxDistanceLoss(nn.Module):
 
         for bi, d in zip(batched_inputs, distances):
             assert torch.isfinite(d).all()
-            if "loss" in bi:
-                bi["loss"] = bi["loss"] + d
+            if "transport_loss" in bi:
+                bi["transport_loss"] = bi["transport_loss"] + d
             else:
-                bi["loss"] = d
+                bi["transport_loss"] = d
         return batched_inputs
 
 
@@ -108,10 +108,10 @@ class BoxProjectionLoss(nn.Module):
 
         for bi, lo in zip(batched_inputs, loss):
             assert torch.isfinite(lo).all()
-            if "loss" in bi:
-                bi["loss"] = bi["loss"] + lo
+            if "detection_loss" in bi:
+                bi["detection_loss"] = bi["detection_loss"] + lo
             else:
-                bi["loss"] = lo
+                bi["detection_loss"] = lo
 
         return batched_inputs
 

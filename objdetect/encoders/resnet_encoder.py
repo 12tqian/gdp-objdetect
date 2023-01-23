@@ -47,7 +47,6 @@ class ResnetEncoder(nn.Module):
         self.register_buffer("pixel_std", torch.tensor(pixel_std).view(-1, 1, 1), False)
         self.normalizer = lambda x: (x - self.pixel_mean) / self.pixel_std
 
-        self.pe_kind = "sine"
         self.max_compressed_size = 100
         self.learn_pe = False
         self.pe_hidden_dim = pe_hidden_dim
