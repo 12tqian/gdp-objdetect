@@ -1,8 +1,9 @@
 import torch
 from torch import nn
 from detectron2.config import configurable
+import math
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 
 from ..registry import NETWORK_REGISTRY
 
@@ -44,11 +45,6 @@ class ProjectionLayer(nn.Module):
         return self._proj_dim
 
     def forward(self, x):
-        # print('bef break', x.type())
-
-        # if x.type() != 'torch.cuda.HalfTensor':
-        #     breakpoint()
-
         return self.proj(x)
 
 
@@ -61,7 +57,7 @@ class ResidualBlock(nn.Module):
         input_proj,
         feature_proj,
         use_difference,
-        include_scaling
+        include_scaling,
     ):
         super().__init__()
         input_proj_dim = input_proj.proj_dim
@@ -102,9 +98,32 @@ class ResidualBlock(nn.Module):
         return x
 
 
+class SkipBlock(nn.Module):
+    def __init__(
+        self,
+        *,
+        input_dim,
+        hidden_size=None,
+    ) -> None:
+        super().__init__()
+        if hidden_size is None:
+            hidden_size = input_dim
+
+        self.proj = nn.Sequential(
+            nn.Linear(input_dim, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, hidden_size),
+            nn.ReLU(),
+            nn.Linear(hidden_size, input_dim),
+        )
+
+    def forward(self, x):
+        return self.proj(x) + x
+
+
 # TODO: change to cfg format
 @NETWORK_REGISTRY.register()
-class ResidualNet(nn.Module):
+class ClassResidualNet(nn.Module):
     @configurable
     def __init__(
         self,
@@ -113,15 +132,17 @@ class ResidualNet(nn.Module):
         feature_dim,
         num_block,
         hidden_size,
+        num_classes,
         input_proj_dim=None,
         feature_proj_dim=None,
         use_difference=True,
-        include_scaling=True
+        include_scaling=True,
     ):
         super().__init__()
         self.input_dim = input_dim
         self.feature_dim = feature_dim
         self.hidden_size = hidden_size
+
         self.input_proj = (
             ProjectionLayer(input_dim, input_proj_dim)
             if input_proj_dim is not None
@@ -147,6 +168,17 @@ class ResidualNet(nn.Module):
                 )
             )
 
+        self.cls_module = nn.Sequential()
+        for _ in range(1):
+            self.cls_module.append(SkipBlock(input_dim))
+
+        self.box_module = nn.Sequential()
+        for _ in range(1):
+            self.cls_module.append(SkipBlock(input_dim))
+
+        self.class_projection = nn.Linear(self.input_dim, num_classes)
+        self.box_projection = nn.Linear(self.input_dim, 4)
+
     @classmethod
     def from_config(cls, cfg):
         return {
@@ -156,6 +188,7 @@ class ResidualNet(nn.Module):
             "hidden_size": cfg.MODEL.NETWORK.HIDDEN_SIZE,
             "feature_proj_dim": cfg.MODEL.NETWORK.FEATURE_PROJ_DIM,
             "input_proj_dim": cfg.MODEL.NETWORK.INPUT_PROJ_DIM,
+            "num_classes": cfg.DATASETS.NUM_CLASSES,
         }
 
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
@@ -173,6 +206,17 @@ class ResidualNet(nn.Module):
 
         for block in self.blocks:
             x = block(F, x)
-        for bi, boxes in zip(batched_inputs, x):
+
+        cls_feature = self.cls_module(x)
+        box_feature = self.box_module(x)
+        batched_boxes = self.box_projection(box_feature)
+
+        batched_class_logits = self.class_projection(cls_feature)  # shape N, B, C
+
+        for bi, class_logit, boxes in zip(
+            batched_inputs, batched_class_logits, batched_boxes
+        ):
+            bi["class_logits"] = class_logit
             bi["pred_boxes"] = boxes
+
         return batched_inputs
