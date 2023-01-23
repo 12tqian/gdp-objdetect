@@ -15,7 +15,7 @@ SOLVER:
   BASE_LR: 0.001
   WANDB:
     ENABLED: True
-    LOG_FREQUENCY: 2
+    LOG_FREQUENCY: 20
 DATASETS:
   TRAIN: ("synthetic_train_10",)
   TEST:  ("synthetic_val_10",)

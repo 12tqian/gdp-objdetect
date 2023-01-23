@@ -22,8 +22,8 @@ class ObjdetectLogger:
     @classmethod
     def from_config(cls, cfg):
         return {
-            "wandb_log_frequency": cfg.SOLVER.WANDB.ENABLED,
-            "wandb_enabled": cfg.SOLVER.WANDB.LOG_FREQUENCY,
+            "wandb_log_frequency": cfg.SOLVER.WANDB.LOG_FREQUENCY,
+            "wandb_enabled": cfg.SOLVER.WANDB.ENABLED,
             "cfg": cfg,
         }
 
