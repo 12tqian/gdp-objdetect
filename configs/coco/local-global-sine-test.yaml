@@ -1,4 +1,4 @@
-_BASE_: "local-global-sine.yaml"
+_BASE_: "local_global-sine.yaml"
 MODEL:
   NUM_HORIZON: 4
   DETECTION_LOSS:

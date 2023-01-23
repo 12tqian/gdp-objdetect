@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from detectron2.config import configurable
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 
 from ..registry import NETWORK_REGISTRY
 
@@ -44,11 +44,6 @@ class ProjectionLayer(nn.Module):
         return self._proj_dim
 
     def forward(self, x):
-        # print('bef break', x.type())
-
-        # if x.type() != 'torch.cuda.HalfTensor':
-        #     breakpoint()
-
         return self.proj(x)
 
 
@@ -64,6 +59,7 @@ class ResidualBlock(nn.Module):
         include_scaling
     ):
         super().__init__()
+        
         input_proj_dim = input_proj.proj_dim
         feature_proj_dim = feature_proj.proj_dim
         self.input_proj = input_proj

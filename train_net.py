@@ -149,7 +149,11 @@ def do_train(
     it_item = zip(data_loader, range(start_iter, cfg.SOLVER.MAX_ITER))
 
     if accelerator.is_main_process:
+        objdetect_logger.maybe_init_wandb()
         objdetect_logger.begin_training(start_iter, cfg.SOLVER.MAX_ITER)
+        breakpoint()
+
+    accelerator.wait_for_everyone()
 
     use_profile = cfg.SOLVER.PROFILE and accelerator.is_main_process
 
@@ -162,8 +166,6 @@ def do_train(
         ):
             objdetect_logger.begin_iteration(batched_inputs)
             with accelerator.accumulate(model):
-                transport_loss = torch.zeros(1, device=model.device)
-                detection_loss = torch.zeros(1, device=model.device)
                 loss_dict = {}
                 for h in range(cfg.MODEL.NUM_HORIZON):
 
@@ -244,8 +246,6 @@ def main(args):
     accelerator = Accelerator()
     global_is_main_process = accelerator.is_main_process
     objdetect_logger = ObjdetectLogger(cfg)
-    if accelerator.is_main_process:
-        objdetect_logger.maybe_init_wandb()
 
     do_train(cfg, model, accelerator, objdetect_logger, args.resume)
 

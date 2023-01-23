@@ -69,7 +69,7 @@ class ObjdetectLogger:
         if self.cur_iter - self.begin_iter > 5 and (
             (self.cur_iter + 1) % 20 == 0 or self.cur_iter == self.end_iter - 1
         ):
-            lr = log_dict["lr"]
+            lr = log_objects["lr"]
             cur_time = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
             tqdm.write(f"[{cur_time}]: iter: {self.cur_iter}   loss: {loss}   lr: {lr}")
         self.cur_iter += 1
