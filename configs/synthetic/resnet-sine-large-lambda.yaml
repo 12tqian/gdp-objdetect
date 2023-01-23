@@ -13,9 +13,9 @@ MODEL:
 SOLVER:
   IMS_PER_BATCH: 8
   BASE_LR: 0.001
-INPUT:
-  CROP:
+  WANDB:
     ENABLED: True
+    LOG_FREQUENCY: 2
 DATASETS:
   TRAIN: ("synthetic_train_10",)
   TEST:  ("synthetic_val_10",)

@@ -1,10 +1,10 @@
+from objdetect_logger import ObjdetectLogger
 import logging
 import itertools
 from typing import List, Dict, Set, Any
 from collections import OrderedDict
 from contextlib import nullcontext
 
-import detectron2.utils.comm as comm
 import torch
 import wandb
 from accelerate import Accelerator
@@ -33,6 +33,7 @@ from datetime import datetime
 
 logger = logging.getLogger("detectron2")
 
+
 def get_profiler():
     return torch.profiler.profile(
         schedule=torch.profiler.schedule(
@@ -44,13 +45,13 @@ def get_profiler():
 
 
 def pprofile(prof):
-    print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
+    tqdm.write(prof.key_averages().table(sort_by="cuda_time_total", row_limit=10))
 
-    print("\n" * 2)
+    tqdm.write("\n" * 2)
 
-    print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
+    tqdm.write(prof.key_averages().table(sort_by="cpu_time_total", row_limit=10))
 
-    print("\n" * 10)
+    tqdm.write("\n" * 10)
 
     prof.export_stacks("./output/profiler_cuda_stacks.txt", "self_cuda_time_total")
     prof.export_stacks("./output/profiler_cpu_stacks.txt", "self_cpu_time_total")
@@ -105,7 +106,7 @@ def build_optimizer(cfg, model):
     return optimizer
 
 
-def do_train(cfg, model, accelerator: Accelerator, resume=False):
+def do_train(cfg, model, accelerator: Accelerator, objdetect_logger: ObjdetectLogger, resume=False):
     model.train()
 
     # optimizer and scheduler
@@ -141,6 +142,9 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
 
     it_item = zip(data_loader, range(start_iter, cfg.SOLVER.MAX_ITER))
 
+    if accelerator.is_main_process:
+        objdetect_logger.begin_training(start_iter, cfg.SOLVER.MAX_ITER)
+
     use_profile = cfg.SOLVER.PROFILE and accelerator.is_main_process
 
     with get_profiler() if use_profile else nullcontext() as profiler:
@@ -150,16 +154,10 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
             disable=not accelerator.is_main_process,
             total=cfg.SOLVER.MAX_ITER,
         ):
+            objdetect_logger.begin_iteration(batched_inputs)
             with accelerator.accumulate(model):
 
                 # setup stuff for logging
-                log_images = (
-                    cfg.SOLVER.WANDB.ENABLED
-                    and step % cfg.SOLVER.WANDB.LOG_FREQUENCY == 0
-                )
-                log_idx = torch.randint(len(batched_inputs), (1,)).item()
-                image_name = batched_inputs[log_idx]["file_name"]
-                logged_images = []
 
                 # horizons loop
                 sum_loss = torch.zeros(1, device=model.device)
@@ -167,11 +165,8 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
 
                     batched_inputs = model(batched_inputs)
 
-                    if log_images:
-                        logged_images.append(
-                            get_logged_batched_input_wandb(batched_inputs[log_idx])
-                        )
-
+                    objdetect_logger.during_iteration(batched_inputs)
+                    
                     for bi in batched_inputs:
                         sum_loss = sum_loss + bi["loss"]
 
@@ -183,26 +178,13 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
                 assert torch.isfinite(sum_loss).all()
 
                 if accelerator.is_main_process:
-                    if cfg.SOLVER.WANDB.ENABLED:
-                        log_dict = {
+                    objdetect_logger.end_iteration(
+                        batched_inputs,
+                        {
                             "loss": sum_loss.item(),
-                            "iteration": step,
+                            "lr": optimizer.param_groups[0]["lr"]
                         }
-
-                        if log_images:
-                            image_file_name = "/".join(image_name.split("/")[-3:])
-
-                            log_dict[image_file_name] = logged_images
-
-                        wandb.log(log_dict)
-                    if step - start_iter > 5 and (
-                        (step + 1) % 20 == 0 or step == cfg.SOLVER.MAX_ITER - 1
-                    ):
-                        lr = optimizer.param_groups[0][
-                            "lr"
-                        ]  # assumes lr is same for all
-                        cur_time = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-                        tqdm.write(f"[{cur_time}]: iter: {step}   loss: {sum_loss}   lr: {lr}")
+                    )
                 accelerator.backward(sum_loss)
                 optimizer.step()
                 if not accelerator.optimizer_step_was_skipped:
@@ -242,11 +224,11 @@ def main(args):
     model = build_model(cfg)
     accelerator = Accelerator()
     global_is_main_process = accelerator.is_main_process
+    objdetect_logger = ObjdetectLogger(cfg)
+    if accelerator.is_main_process:
+        objdetect_logger.maybe_init_wandb()
 
-    if accelerator.is_main_process and cfg.SOLVER.WANDB.ENABLED:
-        wandb.init(project="gdp-objdetect", config=cfg)
-
-    do_train(cfg, model, accelerator, args.resume)
+    do_train(cfg, model, accelerator, objdetect_logger, args.resume)
 
 
 if __name__ == "__main__":
