@@ -203,28 +203,6 @@ class ResidualNet(nn.Module):
             F = F.unsqueeze(1).expand(-1, B, -1)
         for i, block in enumerate(self.blocks):
             if self.use_t:
-<<<<<<< HEAD
-                # t = torch.stack([input["prior_t"] for input in batched_inputs])
-                # half_dim = self.position_dim // 2
-                # embeddings = math.log(10000) / (half_dim - 1)
-                # embeddings = torch.exp(torch.arange(half_dim, device=x.device) * -embeddings) # (1, half_dim)
-                # embeddings = t[..., None] * embeddings[None, :]
-                # embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1) # (shape(t), input_dim)
-                # x = torch.cat((x, embeddings), dim =-1)
-                # x = self.time_projections[i](x)
-                pass
-
-            x = block(F, x)
-
-        cls_feature = self.cls_module(x)
-        box_feature = self.box_module(x)
-        batched_boxes = self.box_projection(box_feature)
-
-        batched_class_logits = self.class_projection(cls_feature) # shape N, B, C
-        
-        for bi, class_logit, boxes in zip(batched_inputs, batched_class_logits, batched_boxes):
-            bi["class_logits"] = class_logit
-=======
                 t = torch.stack([input["prior_t"] for input in batched_inputs])
                 half_dim = self.position_dim // 2
                 embeddings = math.log(10000) / (half_dim - 1)
@@ -240,8 +218,14 @@ class ResidualNet(nn.Module):
 
             x = block(F, x)
 
-        for bi, boxes in zip(batched_inputs, x):
->>>>>>> d01e7a2643901cdd5ffbd8a8ae2dc4f39a358634
+        cls_feature = self.cls_module(x)
+        box_feature = self.box_module(x)
+        batched_boxes = self.box_projection(box_feature)
+
+        batched_class_logits = self.class_projection(cls_feature) # shape N, B, C
+        
+        for bi, class_logit, boxes in zip(batched_inputs, batched_class_logits, batched_boxes):
+            bi["class_logits"] = class_logit
             bi["pred_boxes"] = boxes
         
         return batched_inputs

@@ -1,4 +1,4 @@
-_BASE_: "local-global.yaml"
+_BASE_: "../base-prox.yaml"
 SOLVER:
   MAX_ITER: 100
   IMS_PER_BATCH: 2

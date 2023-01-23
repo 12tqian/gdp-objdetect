@@ -47,6 +47,8 @@ MODEL:
     TRANSPORT_LAMBDA: 1.0
   DETECTION_LOSS: 
     NAME: "BoxProjectionLoss"
+  CLASSIFICATION_LOSS:
+    NAME: "ClassificationLoss"  
 SOLVER:
   SEED: 40244023
   OPTIMIZER: "SGD"
@@ -68,6 +70,7 @@ DATASETS:
     ENABLED: True
   TRAIN: ("synthetic_train_10",)
   TEST: ("synthetic_val_10",)
+  NUM_CLASSES: 80
 INPUT:
   MIN_SIZE_TRAIN: (480, 512, 544, 576, 608, 640, 672, 704, 736, 768, 800)
   CROP:
