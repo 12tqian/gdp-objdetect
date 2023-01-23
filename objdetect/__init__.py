@@ -7,6 +7,7 @@ from .prox_model import ProxModel
 from .proposals import UniformRandomBoxes
 from .losses import BoxDistanceLoss, BoxProjectionLoss
 from .networks.residual_net import ResidualNet
+from .networks.class_residual_net import ClassResidualNet
 from .datasets.synthetic_dataset import (
     synthetic_train_function,
     synthetic_val_function,
