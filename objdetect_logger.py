@@ -13,9 +13,11 @@ class ObjdetectLogger:
         *,
         wandb_enabled: bool,
         wandb_log_frequency: int,
+        is_main_process: bool = False,
         cfg,
     ):
-        self.wandb_enabled = wandb_enabled
+        self.wandb_enabled = wandb_enabled and is_main_process
+        self.is_main_process = is_main_process
         self.wandb_log_frequency = wandb_log_frequency
         self.cfg = cfg
 
@@ -66,8 +68,10 @@ class ObjdetectLogger:
 
         loss = log_objects["total_loss"]
 
-        if self.cur_iter - self.begin_iter > 5 and (
-            (self.cur_iter + 1) % 20 == 0 or self.cur_iter == self.end_iter - 1
+        if (
+            self.cur_iter - self.begin_iter > 5
+            and ((self.cur_iter + 1) % 20 == 0 or self.cur_iter == self.end_iter - 1)
+            and self.is_main_process
         ):
             lr = log_dict["lr"]
             cur_time = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")

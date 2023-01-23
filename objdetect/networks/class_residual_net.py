@@ -98,29 +98,6 @@ class ResidualBlock(nn.Module):
         return x
 
 
-class SkipBlock(nn.Module):
-    def __init__(
-        self,
-        *,
-        input_dim,
-        hidden_size=None,
-    ) -> None:
-        super().__init__()
-        if hidden_size is None:
-            hidden_size = input_dim
-
-        self.proj = nn.Sequential(
-            nn.Linear(input_dim, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, hidden_size),
-            nn.ReLU(),
-            nn.Linear(hidden_size, input_dim),
-        )
-
-    def forward(self, x):
-        return self.proj(x) + x
-
-
 # TODO: change to cfg format
 @NETWORK_REGISTRY.register()
 class ClassResidualNet(nn.Module):
@@ -168,13 +145,31 @@ class ClassResidualNet(nn.Module):
                 )
             )
 
-        self.cls_module = nn.Sequential()
+        self.cls_module = nn.ModuleList()
         for _ in range(1):
-            self.cls_module.append(SkipBlock(input_dim))
+            self.cls_module.append(
+                ResidualBlock(
+                    hidden_size=hidden_size,
+                    input_dim=input_dim,
+                    input_proj=self.input_proj,
+                    feature_proj=self.feature_proj,
+                    use_difference=use_difference,
+                    include_scaling=include_scaling,
+                )
+            )
 
-        self.box_module = nn.Sequential()
+        self.box_module = nn.ModuleList()
         for _ in range(1):
-            self.cls_module.append(SkipBlock(input_dim))
+            self.cls_module.append(
+                ResidualBlock(
+                    hidden_size=hidden_size,
+                    input_dim=input_dim,
+                    input_proj=self.input_proj,
+                    feature_proj=self.feature_proj,
+                    use_difference=use_difference,
+                    include_scaling=include_scaling,
+                )
+            )
 
         self.class_projection = nn.Linear(self.input_dim, num_classes)
         self.box_projection = nn.Linear(self.input_dim, 4)
@@ -207,15 +202,19 @@ class ClassResidualNet(nn.Module):
         for block in self.blocks:
             x = block(F, x)
 
-        cls_feature = self.cls_module(x)
-        box_feature = self.box_module(x)
-        batched_boxes = self.box_projection(box_feature)
+        x_cls = x
+        x_box = x
 
-        batched_class_logits = self.class_projection(cls_feature)  # shape N, B, C
+        for block in self.cls_module:
+            x_cls = block(F, x_cls)
 
-        for bi, class_logit, boxes in zip(
-            batched_inputs, batched_class_logits, batched_boxes
-        ):
+        for block in self.box_module:
+            x_box = block(F, x_box)
+
+        x_cls = self.class_projection(x_cls)
+        x_box = self.box_projection(x_box)
+
+        for bi, class_logit, boxes in zip(batched_inputs, x_cls, x_box):
             bi["class_logits"] = class_logit
             bi["pred_boxes"] = boxes
 
