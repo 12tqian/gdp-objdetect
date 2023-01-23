@@ -18,4 +18,4 @@ DATASETS:
   TEST:  ("synthetic_val_10",)
 AUGMENTATION:
   ENABLED: False
-OUTPUT_DIR: "./output/synthetic-local_global-sine"
+OUTPUT_DIR: "./output/synthetic-local-global-sine"

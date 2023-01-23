@@ -2,7 +2,6 @@ import logging
 import itertools
 from typing import List, Dict, Set, Any
 from collections import OrderedDict
-from tqdm_logging import TqdmLoggingHandler, TqdmToLogger
 from contextlib import nullcontext
 
 import detectron2.utils.comm as comm
@@ -30,6 +29,7 @@ from torch.profiler import ProfilerActivity, profile, record_function
 from tqdm import tqdm
 from objdetect import ProxModelDatasetMapper, add_proxmodel_cfg
 from objdetect.utils.wandb_utils import get_logged_batched_input_wandb
+from datetime import datetime
 
 logger = logging.getLogger("detectron2")
 
@@ -201,7 +201,8 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
                         lr = optimizer.param_groups[0][
                             "lr"
                         ]  # assumes lr is same for all
-                        logger.info(f"iter: {step}   loss: {sum_loss}   lr: {lr}")
+                        cur_time = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+                        tqdm.write(f"[{cur_time}]: iter: {step}   loss: {sum_loss}   lr: {lr}")
                 accelerator.backward(sum_loss)
                 optimizer.step()
                 if not accelerator.optimizer_step_was_skipped:

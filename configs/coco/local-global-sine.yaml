@@ -18,4 +18,4 @@ DATASETS:
   TEST: ("coco_2017_val",)
 AUGMENTATION:
   ENABLED: False
-OUTPUT_DIR: "./output/coco-local_global-sine"
+OUTPUT_DIR: "local-global-sine.yaml"
