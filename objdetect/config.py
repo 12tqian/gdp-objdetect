@@ -52,6 +52,18 @@ def load_yaml_with_base(filename: str):
     return cfg
 
 
+<<<<<<< HEAD
+    cfg.MODEL.CLASSIFICATION_LOSS = CN()
+    cfg.MODEL.CLASSIFICATION_LOSS.NAME = "ClassificationLoss"
+
+    cfg.MODEL.NETWORK.INPUT_DIM = 4
+    cfg.MODEL.NETWORK.FEATURE_DIM = 256
+    cfg.MODEL.NETWORK.NUM_BLOCK = 10
+    cfg.MODEL.NETWORK.HIDDEN_SIZE = 128
+    cfg.MODEL.NETWORK.FEATURE_PROJ_DIM = 128
+    cfg.MODEL.NETWORK.INPUT_PROJ_DIM = 128
+    cfg.MODEL.NETWORK.POSITION_DIM = 128
+=======
 def update_config_with_dict(cur_cfg: CN, cur_dict: Dict):
     for k, v in cur_dict.items():
         if isinstance(v, Dict):
@@ -64,9 +76,30 @@ def update_config_with_dict(cur_cfg: CN, cur_dict: Dict):
                 cur_cfg.update({k: literal_eval(str(v))})
             except:
                 cur_cfg.update({k: v})
+>>>>>>> d01e7a2643901cdd5ffbd8a8ae2dc4f39a358634
 
 
+<<<<<<< HEAD
+    cfg.MODEL.LOSS = CN()
+    cfg.MODEL.LOSS.BOX_DISTANCE_TYPE = "l2"
+    cfg.MODEL.LOSS.TRANSPORT_LAMBDA = 1.0
+
+    # logging stuff
+    cfg.SOLVER.PROFILE = False
+
+    cfg.DATASETS.TRAIN_COUNT = 100
+    cfg.DATASETS.NUM_CLASSES = 80
+
+    cfg.SOLVER.WANDB = CN()
+    cfg.SOLVER.WANDB.ENABLE = True
+    cfg.SOLVER.WANDB.LOG_FREQUENCY = 20
+
+    # Optimizer.
+    # cfg.MODEL.SOLVER.OPTIMIZER = "ADAMW"
+    # cfg.MODEL.SOLVER.BACKBONE_MULTIPLIER = 1.0
+=======
 def add_proxmodel_cfg(cfg, config_file=None):
     if config_file is not None:
         config_dict = load_yaml_with_base(config_file)
         update_config_with_dict(cfg, config_dict)
+>>>>>>> d01e7a2643901cdd5ffbd8a8ae2dc4f39a358634
