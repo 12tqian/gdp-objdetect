@@ -9,7 +9,9 @@ MODEL:
       TYPE: "sine"
 SOLVER:
   IMS_PER_BATCH: 8
-  BASE_LR: 0.001
+  BASE_LR: 0.0001
+  WANDB:
+    ENABLED: True
 INPUT:
   CROP:
     ENABLED: True
