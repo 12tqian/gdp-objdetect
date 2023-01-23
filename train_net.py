@@ -148,12 +148,8 @@ def do_train(
 
     it_item = zip(data_loader, range(start_iter, cfg.SOLVER.MAX_ITER))
 
-    if accelerator.is_main_process:
-        objdetect_logger.maybe_init_wandb()
-        objdetect_logger.begin_training(start_iter, cfg.SOLVER.MAX_ITER)
-        breakpoint()
-
-    accelerator.wait_for_everyone()
+    objdetect_logger.maybe_init_wandb()
+    objdetect_logger.begin_training(start_iter, cfg.SOLVER.MAX_ITER)
 
     use_profile = cfg.SOLVER.PROFILE and accelerator.is_main_process
 
@@ -165,6 +161,7 @@ def do_train(
             total=cfg.SOLVER.MAX_ITER,
         ):
             objdetect_logger.begin_iteration(batched_inputs)
+
             with accelerator.accumulate(model):
                 loss_dict = {}
                 for h in range(cfg.MODEL.NUM_HORIZON):
@@ -194,18 +191,18 @@ def do_train(
 
                 assert torch.isfinite(total_loss).all()
 
-                if accelerator.is_main_process:
-                    log_dict = loss_dict
-                    log_dict.update(
-                        {
-                            "total_loss": total_loss.item(),
-                            "lr": optimizer.param_groups[0]["lr"],
-                        }
-                    )
-                    objdetect_logger.end_iteration(
-                        batched_inputs,
-                        log_dict,
-                    )
+                log_dict = loss_dict
+                log_dict.update(
+                    {
+                        "total_loss": total_loss.item(),
+                        "lr": optimizer.param_groups[0]["lr"],
+                    }
+                )
+                objdetect_logger.end_iteration(
+                    batched_inputs,
+                    log_dict,
+                )
+
                 accelerator.backward(total_loss)
                 optimizer.step()
                 if not accelerator.optimizer_step_was_skipped:
@@ -236,16 +233,12 @@ def setup(args):
     return cfg
 
 
-global_is_main_process = False
-
-
 def main(args):
-    global global_is_main_process
     cfg = setup(args)
     model = build_model(cfg)
     accelerator = Accelerator()
-    global_is_main_process = accelerator.is_main_process
-    objdetect_logger = ObjdetectLogger(cfg)
+
+    objdetect_logger = ObjdetectLogger(cfg, is_main_process=accelerator.is_main_process)
 
     do_train(cfg, model, accelerator, objdetect_logger, args.resume)
 

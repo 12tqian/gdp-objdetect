@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from detectron2.config import configurable
+import math
 
 from typing import Dict, List
 
@@ -56,10 +57,9 @@ class ResidualBlock(nn.Module):
         input_proj,
         feature_proj,
         use_difference,
-        include_scaling
+        include_scaling,
     ):
         super().__init__()
-        
         input_proj_dim = input_proj.proj_dim
         feature_proj_dim = feature_proj.proj_dim
         self.input_proj = input_proj
@@ -100,7 +100,7 @@ class ResidualBlock(nn.Module):
 
 # TODO: change to cfg format
 @NETWORK_REGISTRY.register()
-class ResidualNet(nn.Module):
+class ClassResidualNet(nn.Module):
     @configurable
     def __init__(
         self,
@@ -109,15 +109,17 @@ class ResidualNet(nn.Module):
         feature_dim,
         num_block,
         hidden_size,
+        num_classes,
         input_proj_dim=None,
         feature_proj_dim=None,
         use_difference=True,
-        include_scaling=True
+        include_scaling=True,
     ):
         super().__init__()
         self.input_dim = input_dim
         self.feature_dim = feature_dim
         self.hidden_size = hidden_size
+
         self.input_proj = (
             ProjectionLayer(input_dim, input_proj_dim)
             if input_proj_dim is not None
@@ -143,6 +145,35 @@ class ResidualNet(nn.Module):
                 )
             )
 
+        self.cls_module = nn.ModuleList()
+        for _ in range(1):
+            self.cls_module.append(
+                ResidualBlock(
+                    hidden_size=hidden_size,
+                    input_dim=input_dim,
+                    input_proj=self.input_proj,
+                    feature_proj=self.feature_proj,
+                    use_difference=use_difference,
+                    include_scaling=include_scaling,
+                )
+            )
+
+        self.box_module = nn.ModuleList()
+        for _ in range(1):
+            self.cls_module.append(
+                ResidualBlock(
+                    hidden_size=hidden_size,
+                    input_dim=input_dim,
+                    input_proj=self.input_proj,
+                    feature_proj=self.feature_proj,
+                    use_difference=use_difference,
+                    include_scaling=include_scaling,
+                )
+            )
+
+        self.class_projection = nn.Linear(self.input_dim, num_classes)
+        self.box_projection = nn.Linear(self.input_dim, 4)
+
     @classmethod
     def from_config(cls, cfg):
         return {
@@ -152,6 +183,7 @@ class ResidualNet(nn.Module):
             "hidden_size": cfg.MODEL.NETWORK.HIDDEN_SIZE,
             "feature_proj_dim": cfg.MODEL.NETWORK.FEATURE_PROJ_DIM,
             "input_proj_dim": cfg.MODEL.NETWORK.INPUT_PROJ_DIM,
+            "num_classes": cfg.DATASETS.NUM_CLASSES,
         }
 
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
@@ -169,6 +201,21 @@ class ResidualNet(nn.Module):
 
         for block in self.blocks:
             x = block(F, x)
-        for bi, boxes in zip(batched_inputs, x):
+
+        x_cls = x
+        x_box = x
+
+        for block in self.cls_module:
+            x_cls = block(F, x_cls)
+
+        for block in self.box_module:
+            x_box = block(F, x_box)
+
+        x_cls = self.class_projection(x_cls)
+        x_box = self.box_projection(x_box)
+
+        for bi, class_logit, boxes in zip(batched_inputs, x_cls, x_box):
+            bi["class_logits"] = class_logit
             bi["pred_boxes"] = boxes
+
         return batched_inputs
