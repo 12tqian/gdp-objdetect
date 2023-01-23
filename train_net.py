@@ -139,65 +139,9 @@ def do_train(cfg, model, accelerator: Accelerator, resume=False):
         model, optimizer, data_loader, scheduler
     )
 
-<<<<<<< HEAD
-    # compared to "train_net.py", we do not support accurate timing and
-    # precise BN here, because they are not trivial to implement in a small training loop
-    mapper = ProxModelDatasetMapper(cfg, is_train=True)
-    data_loader = build_detection_train_loader(cfg, mapper=mapper)
-    logger.info("Starting training from iteration {}".format(start_iter))
-    # single_iteration = cfg.SOLVER.NUM_GPUS * cfg.SOLVER.IMS_PER_BATCH
-    # iterations_for_one_epoch = cfg.DATASETS.TRAIN_COUNT / single_iteration
-    for data, iteration in tqdm(
-        zip(data_loader, range(start_iter, max_iter)),
-        disable=not comm.is_main_process(),
-        total=cfg.SOLVER.MAX_ITER,
-    ):
-
-        sum_loss = torch.zeros(1).to(model.device)  # TODO: hacky
-        batch_size = len(data)
-        log_idx = torch.randint(batch_size, (1,)).item()
-        do_log = iteration % cfg.SOLVER.WANDB.LOG_FREQUENCY == 0
-        image_list = []
-        name = ""
-        for h in range(num_horizon):
-            data = model(data)
-            for item in data:
-                sum_loss = sum_loss + item["loss"]
-            if do_log:
-                image_list.append(get_logged_batched_input_wandb(data[log_idx]))
-                name = data[log_idx]["file_name"]
-
-            for item in data:
-                item["proposal_boxes"] = item["pred_boxes"].detach()
-
-        sum_loss = (
-            sum_loss.mean() / len(data) / num_horizon
-        )  # TODO: maybe sus, divide by batch size
-
-        if comm.is_main_process() and do_log:
-            if do_log:
-                lst = name.split("/")
-                file_name = lst[-3] + "/" + lst[-2] + "/" + lst[-1]
-            #     wandb.log(
-            #         {
-            #             "loss": sum_loss.item(),
-            #             file_name: image_list,
-            #             "iteration": iteration,
-            #         }
-            #     )
-            # else:
-            #     wandb.log(
-            #         {
-            #             "loss": sum_loss.item(),
-            #             # "epoch": iteration // len(data_loader.dataset)+ 1,
-            #             "iteration": iteration,
-            #         }
-            #     )
-=======
     it_item = zip(data_loader, range(start_iter, cfg.SOLVER.MAX_ITER))
 
     use_profile = cfg.SOLVER.PROFILE and accelerator.is_main_process
->>>>>>> d01e7a2643901cdd5ffbd8a8ae2dc4f39a358634
 
     with get_profiler() if use_profile else nullcontext() as profiler:
 
@@ -291,12 +235,6 @@ def setup(args):
 
 global_is_main_process = False
 
-<<<<<<< HEAD
-    if comm.is_main_process():
-        # wandb.init(project="gdp-objdetect", config=cfg)
-        pass
-=======
->>>>>>> d01e7a2643901cdd5ffbd8a8ae2dc4f39a358634
 
 def main(args):
     global global_is_main_process
