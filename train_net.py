@@ -156,10 +156,6 @@ def do_train(cfg, model, accelerator: Accelerator, objdetect_logger: ObjdetectLo
         ):
             objdetect_logger.begin_iteration(batched_inputs)
             with accelerator.accumulate(model):
-
-                # setup stuff for logging
-
-                # horizons loop
                 sum_loss = torch.zeros(1, device=model.device)
                 for h in range(cfg.MODEL.NUM_HORIZON):
 
