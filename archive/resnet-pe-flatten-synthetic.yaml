@@ -1,0 +1,15 @@
+_BASE_: "base-prox.yaml"
+MODEL:
+  ENCODER:
+    NAME: ResnetEncoderPEFlatten
+  NUM_HORIZON: 5
+SOLVER:
+  IMS_PER_BATCH: 4
+  BASE_LR: 0.0001
+  CHECKPOINT_PERIOD: 1000
+
+DATASETS:
+ TRAIN: ("synthetic_train_10",)
+ TEST:  ("synthetic_val_10",)
+
+OUTPUT_DIR: "./output/resnet-pe-flatten"

@@ -1,0 +1,21 @@
+_BASE_: "../base-prox.yaml"
+MODEL:
+  NUM_HORIZON: 5
+  TRAIN_PROPOSAL_GENERATOR:
+    NAME: "UniformRandomBoxes"
+    NUM_PROPOSALS: 100
+  ENCODER:
+    POSITIONAL_EMBEDDINGS:
+      TYPE: "sine"
+SOLVER:
+  IMS_PER_BATCH: 8
+  BASE_LR: 0.001
+INPUT:
+  CROP:
+    ENABLED: True
+DATASETS:
+  TRAIN: ("synthetic_train_10",)
+  TEST:  ("synthetic_val_10",)
+AUGMENTATION:
+  ENABLED: False
+OUTPUT_DIR: "./output/synthetic-local-global-sine"

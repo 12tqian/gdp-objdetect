@@ -76,6 +76,9 @@ class ProxModelDatasetMapper:
 
         self.img_format = cfg.INPUT.FORMAT
         self.is_train = is_train
+        if not cfg.DATASETS.AUGMENTATION.ENABLED:
+            self.crop_gen = []
+            self.tfm_gens = []
 
     def __call__(self, dataset_dict):
         """

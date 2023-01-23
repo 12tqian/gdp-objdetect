@@ -9,6 +9,6 @@ SOLVER:
   BASE_LR: 0.0001
   CHECKPOINT_PERIOD: 1000
   WANDB:
-    ENABLE: True
+    ENABLED: True
 
 OUTPUT_DIR: "./output/zeric-1"

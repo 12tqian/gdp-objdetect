@@ -1,6 +1,6 @@
+VERSION: 2
 MODEL:
   META_ARCHITECTURE: "ProxModel"
-  # WEIGHTS: "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
   PIXEL_MEAN: [123.675, 116.280, 103.530]
   PIXEL_STD: [58.395, 57.120, 57.375]
   BACKBONE:
@@ -18,52 +18,66 @@ MODEL:
     POOLER_SAMPLING_RATIO: 2
   TRAIN_PROPOSAL_GENERATOR:
     NAME: "UniformRandomBoxes"
+    NUM_PROPOSALS: 100
+    GAUSSIAN_ERROR: 0.1
+    USE_TIME: False
   INFERENCE_PROPOSAL_GENERATOR:
     NAME: "UniformRandomBoxes"
+    NUM_PROPOSALS: 100
   ENCODER:
     NAME: "LocalGlobalEncoder"
-    # WEIGHTS: "detectron2://ImageNetPretrained/torchvision/R-50.pkl"
+    DIMENSION: 256
     WEIGHTS: "https://dl.fbaipublicfiles.com/detectron2/ImageNetPretrained/torchvision/R-50.pkl"
+    POSITIONAL_EMBEDDINGS:
+      TYPE: "none"
+      HIDDEN_DIM: 256
   NETWORK:
     NAME: "ResidualNet"
+    INPUT_DIM: 4
+    FEATURE_DIM: 256
+    NUM_BLOCK: 10
+    HIDDEN_SIZE: 128
+    FEATURE_PROJ_DIM: 128
+    INPUT_PROJ_DIM: 128
+    POSITION_DIM: 128
+  NUM_HORIZON: 8
   TRANSPORT_LOSS:
     NAME: "BoxDistanceLoss"
-  DETECTION_LOSS:
+    BOX_DISTANCE_TYPE: "l2"
+    TRANSPORT_LAMBDA: 1.0
+  DETECTION_LOSS: 
     NAME: "BoxProjectionLoss"
-  NUM_HORIZON: 4
 SOLVER:
+  SEED: 40244023
+  OPTIMIZER: "SGD"
   IMS_PER_BATCH: 4
-  BASE_LR: 0.000025
-  # STEPS: (210000, 250000)
-  # MAX_ITER: 270000
-  # WARMUP_FACTOR: 0.01
-  # WARMUP_ITERS: 1000
-  # WEIGHT_DECAY: 0.0001
-  # OPTIMIZER: "ADAMW"
-  # BACKBONE_MULTIPLIER: 1.0  # keep same with BASE_LR.
-  # CLIP_GRADIENTS:
-  #   ENABLED: True
-  #   CLIP_TYPE: "full_model"
-  #   CLIP_VALUE: 1.0
-  #   NORM_TYPE: 2.0
+  BASE_LR: 0.0001
+  BACKBONE_MULTIPLIER: 1.0
+  CHECKPOINT_PERIOD: 1000
   STEPS: (350000, 420000)
   MAX_ITER: 450000
   AMP:
     ENABLED: True
-SEED: 40244023
+  WANDB:
+    ENABLED: False
+    LOG_FREQUENCY: 20
+  PROFILE: False
+DATASETS:
+  TRAIN_COUNT: 100
+  AUGMENTATION:
+    ENABLED: True
+  TRAIN: ("synthetic_train_10",)
+  TEST: ("synthetic_val_10",)
 INPUT:
   MIN_SIZE_TRAIN: (480, 512, 544, 576, 608, 640, 672, 704, 736, 768, 800)
   CROP:
     ENABLED: True
     TYPE: "absolute_range"
     SIZE: (384, 600)
-  FORMAT: "RGB"
+    FORMAT: "RGB"
 TEST:
   EVAL_PERIOD: 7330
 DATALOADER:
   FILTER_EMPTY_ANNOTATIONS: False
   NUM_WORKERS: 4
-VERSION: 2
-DATASETS:
-  TRAIN: ("coco_2017_train",)
-  TEST: ("coco_2017_val",)
+

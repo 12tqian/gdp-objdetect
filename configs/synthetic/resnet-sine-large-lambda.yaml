@@ -1,0 +1,24 @@
+_BASE_: "../base-prox.yaml"
+MODEL:
+  NUM_HORIZON: 5
+  TRAIN_PROPOSAL_GENERATOR:
+    NAME: "UniformRandomBoxes"
+    NUM_PROPOSALS: 100
+  ENCODER:
+    NAME: "ResnetEncoder"
+    POSITIONAL_EMBEDDINGS:
+      TYPE: "sine"
+  TRANSPORT_LOSS:
+    TRANSPORT_LAMBDA: 4.0
+SOLVER:
+  IMS_PER_BATCH: 8
+  BASE_LR: 0.001
+INPUT:
+  CROP:
+    ENABLED: True
+DATASETS:
+  TRAIN: ("synthetic_train_10",)
+  TEST:  ("synthetic_val_10",)
+AUGMENTATION:
+  ENABLED: False
+OUTPUT_DIR: "./output/synthetic-resnet-sine"

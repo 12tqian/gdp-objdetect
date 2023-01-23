@@ -1,0 +1,23 @@
+_BASE_: "../base-prox.yaml"
+MODEL:
+  NUM_HORIZON: 5
+  TRAIN_PROPOSAL_GENERATOR:
+    NAME: "UniformRandomBoxes"
+    NUM_PROPOSALS: 100
+  ENCODER:
+    POSITIONAL_EMBEDDINGS:
+      TYPE: "sine"
+SOLVER:
+  IMS_PER_BATCH: 8
+  BASE_LR: 0.0001
+  WANDB:
+    ENABLED: True
+INPUT:
+  CROP:
+    ENABLED: True
+DATASETS:
+  TRAIN: ("coco_2017_train",)
+  TEST: ("coco_2017_val",)
+AUGMENTATION:
+  ENABLED: False
+OUTPUT_DIR: "local-global-sine.yaml"

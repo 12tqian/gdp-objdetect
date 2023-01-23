@@ -38,6 +38,8 @@ class LocalGlobalEncoder(nn.Module):
         pixel_mean: Tuple[float],
         pixel_std: Tuple[float],
         weights: str,
+        pe_hidden_dim: int,
+        pe_kind: str,
     ):
         super().__init__()
         self.local_backbone = local_backbone
@@ -61,6 +63,13 @@ class LocalGlobalEncoder(nn.Module):
 
         # input is 256x7x7, output is 256x1x1
 
+        self.pe_kind = "sine"
+        self.max_compressed_size = 100
+        self.learn_pe = False
+        self.pe_hidden_dim = pe_hidden_dim
+        self.pe_kind = pe_kind
+        self.create_positional_encoding()
+
         self.conv_global = nn.Sequential(
             nn.Conv2d(2048, self.encoder_dim, 1),
         )
@@ -76,7 +85,7 @@ class LocalGlobalEncoder(nn.Module):
         self.pool_local = nn.AdaptiveAvgPool2d((1, 1))
 
         self.ffn_global = torch.nn.Sequential(
-            nn.Linear(self.encoder_dim, 256),
+            nn.Linear(self.encoder_dim + self.pe_dim, 256),
             nn.ReLU(),
             nn.Linear(256, 256),
             nn.ReLU(),
@@ -114,6 +123,36 @@ class LocalGlobalEncoder(nn.Module):
         self.global_backbone.load_state_dict(state_dict)
         self.local_backbone.bottom_up.load_state_dict(state_dict)
 
+    def create_positional_encoding(self):
+        if self.pe_kind == "none":
+            self.pe_dim = 0
+            return
+
+        if self.pe_kind == "rand":
+            row_embed = torch.rand(
+                self.max_compressed_size, self.pe_hidden_dim // 2
+            )  # MxD/2
+            col_embed = torch.rand(
+                self.max_compressed_size, self.pe_hidden_dim // 2
+            )  # MxD/2
+            self.pe_dim = self.pe_hidden_dim
+        else:
+            assert self.pe_kind == "sine"
+            tmp = torch.arange(self.max_compressed_size).float()  # M
+            freq = torch.arange(self.pe_hidden_dim // 4).float()  # D/4
+            freq = tmp.unsqueeze(-1) / torch.pow(
+                10000, 4 * freq.unsqueeze(0) / self.pe_hidden_dim
+            )  # MxD/4
+            row_embed = torch.cat([freq.sin(), freq.cos()], -1)  # MxD/2
+            col_embed = row_embed
+            self.pe_dim = self.pe_hidden_dim
+        if self.learn_pe:
+            self.row_embed = torch.nn.Parameter(row_embed.detach().clone())
+            self.col_embed = torch.nn.Parameter(col_embed.detach().clone())
+        else:
+            self.register_buffer("row_embed", row_embed.detach().clone())
+            self.register_buffer("col_embed", col_embed.detach().clone())
+
     @classmethod
     def from_config(cls, cfg):
         input_shape = ShapeSpec(channels=len(cfg.MODEL.PIXEL_MEAN))
@@ -130,6 +169,8 @@ class LocalGlobalEncoder(nn.Module):
             "pixel_mean": cfg.MODEL.PIXEL_MEAN,
             "pixel_std": cfg.MODEL.PIXEL_STD,
             "weights": cfg.MODEL.ENCODER.WEIGHTS,
+            "pe_kind": cfg.MODEL.ENCODER.POSITIONAL_EMBEDDINGS.TYPE,
+            "pe_hidden_dim": cfg.MODEL.ENCODER.POSITIONAL_EMBEDDINGS.HIDDEN_DIM,
         }
 
     @classmethod
@@ -171,10 +212,37 @@ class LocalGlobalEncoder(nn.Module):
             proposal_boxes.append(Boxes(boxes))
 
         # following line of code assumes that each image in the batch has the same number of proposal_boxees
+
         num_proposals_per_image = len(batched_inputs[0]["proposal_boxes"])
 
-        fpn_features_dict = self.local_backbone(images.tensor)
-        global_features = self.global_backbone(images.tensor)["res5"]
+        first_input = batched_inputs[0]
+        if "cache" in first_input:
+            fpn_features_dict, global_features = first_input["cache"]
+        else:
+            fpn_features_dict = self.local_backbone(images.tensor)
+            global_features = self.global_backbone(images.tensor)["res5"]
+            global_features = self.global_backbone(images.tensor)["res5"]
+            global_features = self.conv_global(global_features)
+            B, _, H, W = global_features.shape
+
+            global_features = global_features.permute(0, 2, 3, 1)
+            if self.pe_kind != "none":
+                pos = torch.cat(
+                    [
+                        self.col_embed[:W].unsqueeze(0).repeat(H, 1, 1),
+                        self.row_embed[:H].unsqueeze(1).repeat(1, W, 1),
+                    ],
+                    -1,
+                )  # H'xW'xD
+                pos = pos.unsqueeze(0).repeat(B, 1, 1, 1)  # BxH'xW'xD
+                global_features = torch.cat([global_features, pos], -1)  # BxH'xW'x2D
+            global_features = self.ffn_global(global_features)
+            global_features = global_features.permute(0, 3, 1, 2)
+            global_features = self.pool_global(global_features)
+            global_features = global_features.view(batch_size, 1, -1).repeat(
+                1, num_proposals_per_image, 1
+            )
+            first_input["cache"] = (fpn_features_dict, global_features)
 
         fpn_features = [
             fpn_features_dict[feature_name] for feature_name in self.fpn_in_features
@@ -192,14 +260,6 @@ class LocalGlobalEncoder(nn.Module):
         roi_features = roi_features.permute(0, 1, 4, 2, 3)
         roi_features = self.pool_local(roi_features).squeeze(4).squeeze(3)
 
-        global_features = self.conv_global(global_features)
-        global_features = global_features.permute(0, 2, 3, 1)
-        global_features = self.ffn_global(global_features)
-        global_features = global_features.permute(0, 3, 1, 2)
-        global_features = self.pool_global(global_features)
-        global_features = global_features.view(batch_size, 1, -1).repeat(
-            1, num_proposals_per_image, 1
-        )
         encoding = self.ffn_both(torch.cat((roi_features, global_features), dim=2))
         for input, item_encoding in zip(batched_inputs, encoding):
             input["encoding"] = item_encoding

@@ -21,8 +21,13 @@ class BoxDistanceLoss(nn.Module):
     @classmethod
     def from_config(cls, cfg):
         return {
+<<<<<<< HEAD
             "box_distance_type": cfg.MODEL.LOSS.BOX_DISTANCE_TYPE,
             "transport_lambda": cfg.MODEL.LOSS.TRANSPORT_LAMBDA,
+=======
+            "box_distance_type": cfg.MODEL.TRANSPORT_LOSS.BOX_DISTANCE_TYPE,
+            "transport_lambda": cfg.MODEL.TRANSPORT_LOSS.TRANSPORT_LAMBDA
+>>>>>>> d01e7a2643901cdd5ffbd8a8ae2dc4f39a358634
         }
 
     def forward(self, batched_inputs):

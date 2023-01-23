@@ -8,7 +8,7 @@ SOLVER:
   BASE_LR: 0.0001
   CHECKPOINT_PERIOD: 1000
 DATASETS:
-  TRAIN: ("synthetic_train",)
-  TEST:  ("synthetic_val",)
+ TRAIN: ("synthetic_train_10",)
+ TEST:  ("synthetic_val_10",)
 
-OUTPUT_DIR: "./output/resnet-debug"
+OUTPUT_DIR: "./output/resnet-synthetic"
