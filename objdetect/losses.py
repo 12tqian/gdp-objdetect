@@ -181,14 +181,12 @@ class BoxProjectionOriginLoss(nn.Module):
 @LOSS_REGISTRY.register()
 class ClassificationLoss(nn.Module):
     @configurable
-    def __init__(self, num_classes):
+    def __init__(self):
         super().__init__()
-        self.num_classes = num_classes
 
     @classmethod
     def from_config(cls, cfg):
         return {
-            "num_classes": cfg.DATASETS.NUM_CLASSES,  # TODO: Maybe don't need this?
         }
 
     def box_distances(self, box1, box2):
@@ -275,23 +273,13 @@ class ClassificationLoss(nn.Module):
         loss = F.cross_entropy(
             flattened_logits, flattened_classes, reduction="none"
         )  # NA
-        # breakpoint()
         loss = loss.reshape((N, A))
-
-        # target_onehot = F.one_hot(target_gt_classes, num_classes=class_logits.shape[2]).float() # NxAxC
-
-        # loss = binary_cross_entropy_with_logits(class_logits.flatten(0,1), target_onehot.flatten(0,1), reduction="none") # NxAxC
-        # loss = loss.reshape(((N, A, C))).sum(-1) # NxA
-
-        # breakpoint()
 
         gt_is_not_empty_mask = (
             torch.tensor(gt_is_not_empty_mask, dtype=bool, device=device)
             .unsqueeze(-1)
             .repeat(1, A)
         )
-
-        # breakpoint()
 
         loss = torch.where(
             gt_is_not_empty_mask,
@@ -306,6 +294,134 @@ class ClassificationLoss(nn.Module):
                 loss_dict["classification_loss"] = loss_dict["classification_loss"] + lo
             else:
                 loss_dict["classification_loss"] = lo
+
+        # breakpoint()
+
+        return batched_inputs
+
+
+@LOSS_REGISTRY.register()
+class ClassificationBoxProjectionLoss(nn.Module):
+    @configurable
+    def __init__(self):
+        super().__init__()
+
+    @classmethod
+    def from_config(cls, cfg):
+        return {
+        }
+
+    def box_distances(self, box1, box2):
+        box1 = box1.unsqueeze(-2)  # N x A x 1 x 4
+        box2 = box2.unsqueeze(-3)  # N x 1 x B x 4
+        return (box1 - box2).abs().sum(-1)  # N x A x B
+
+    def forward(self, batched_inputs: List[Dict[str, torch.Tensor | Instances]]):
+        """
+        batched_inputs["original_gt"] shape B, contains the index for the original groundtruth box that was noised in proposal box generation.
+
+        Compares to class of nearest gt_box
+        """
+        # TODO: fix device hack
+        device = batched_inputs[0]["image"].device
+
+        # Finding nearest gt_box
+        max_gt_boxes = max(
+            bi["instances"].gt_boxes.tensor.shape[0] for bi in batched_inputs
+        )
+
+        max_gt_boxes = max(max_gt_boxes, 1)
+
+        N = len(batched_inputs)
+
+        gt_padded = torch.zeros(
+            [N, max_gt_boxes, 4],
+            dtype=batched_inputs[0]["instances"].gt_boxes.tensor.dtype,
+            device=device,
+        )
+
+        gt_masks = torch.zeros([N, max_gt_boxes], dtype=torch.bool, device=device)
+
+        for i in range(N):
+            pred_boxes = batched_inputs[i]["instances"].gt_boxes.tensor
+
+            if pred_boxes.shape[0] > 0:
+                gt_padded[i, : pred_boxes.shape[0], :].copy_(pred_boxes)
+                gt_masks[i, : pred_boxes.shape[0]] = True
+
+        # pred_boxes is NxAx4
+        # gt_padded NxBx4
+        pred_boxes = torch.stack([bi["pred_boxes"] for bi in batched_inputs])
+
+        box_distances = self.box_distances(
+            pred_boxes, gt_padded
+        )  # N x A x B (A is # pred_boxes, B is max # gt_boxes)
+        box_distances_masked = torch.where(
+            gt_masks.unsqueeze(-2).expand(
+                -1, box_distances.shape[1], -1
+            ),  # N x B -> N x A x B
+            box_distances,
+            torch.full_like(box_distances, 1e8),
+        )
+        
+        
+
+        projection_loss, closest_gt_boxes = box_distances_masked.min(
+            -1
+        )  # both N x A
+        masks_gathered = torch.gather(gt_masks, 1, closest_gt_boxes)  # N x A
+        projection_loss = torch.where(masks_gathered, projection_loss, torch.zeros_like(projection_loss))  # N x A
+
+        target_gt_classes = []
+        gt_is_not_empty_mask = []
+        for i, bi in enumerate(batched_inputs):
+            if bi["instances"].gt_classes.shape[0] > 0:
+                target_gt_classes.append(
+                    bi["instances"].gt_classes[closest_gt_boxes[i]]
+                )
+                gt_is_not_empty_mask.append(1)
+            else:
+                target_gt_classes.append(
+                    torch.full_like(closest_gt_boxes[i], 0)
+                )  # TODO: Oof, needa handle the case where there are no gt_classes
+                gt_is_not_empty_mask.append(0)
+
+        target_gt_classes = torch.stack(target_gt_classes)  # NxA
+
+        class_logits = torch.stack(
+            [bi["class_logits"] for bi in batched_inputs]
+        )  # NxAxC
+        N, A, C = class_logits.shape
+
+        flattened_logits = class_logits.flatten(0, 1)
+        flattened_classes = target_gt_classes.flatten(0, 1)
+
+        classification_loss = F.cross_entropy(
+            flattened_logits, flattened_classes, reduction="none"
+        )  # NA
+        classification_loss = classification_loss.reshape((N, A))
+
+        gt_is_not_empty_mask = (
+            torch.tensor(gt_is_not_empty_mask, dtype=bool, device=device)
+            .unsqueeze(-1)
+            .repeat(1, A)
+        )
+
+        classification_loss = torch.where(
+            gt_is_not_empty_mask,
+            classification_loss,
+            torch.full_like(classification_loss, 0),
+        )
+
+        loss = classification_loss + projection_loss
+
+        for bi, lo in zip(batched_inputs, loss):
+            assert torch.isfinite(lo).all()
+            loss_dict = bi["loss_dict"]
+            if "classification_projection_loss" in loss_dict:
+                loss_dict["classification_projection_loss"] = loss_dict["classification_projection_loss"] + lo
+            else:
+                loss_dict["classification_projection_loss"] = lo
 
         # breakpoint()
 
