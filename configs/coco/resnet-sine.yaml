@@ -15,4 +15,4 @@ SOLVER:
 DATASETS:
   TRAIN: ("coco_2017_train",)
   TEST: ("coco_2017_val",)
-OUTPUT_DIR: "./output/resnet-sine.yaml"
+OUTPUT_DIR: "./output/resnet-sine-2"

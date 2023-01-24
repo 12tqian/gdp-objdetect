@@ -1,15 +1,12 @@
 _BASE_: "../base-prox.yaml"
 MODEL:
   NUM_HORIZON: 5
-  TRAIN_PROPOSAL_GENERATOR:
-    NAME: "UniformRandomBoxes"
-    NUM_PROPOSALS: 100
   ENCODER:
     NAME: "ResnetEncoder"
     POSITIONAL_EMBEDDINGS:
       TYPE: "sine"
-  TRANSPORT_LOSS:
-    TRANSPORT_LAMBDA: 1.0
+  NETWORK:
+    NAME: "ClassResidualNet"
 SOLVER:
   IMS_PER_BATCH: 9
   WANDB:
@@ -19,5 +16,5 @@ DATASETS:
   TRAIN: ("synthetic_train_10",)
   TEST:  ("synthetic_val_10",)
   AUGMENTATION:
-    ENABLED: True
-OUTPUT_DIR: "./output/synthetic-resnet-sine-normal-lambda"
+    ENABLED: False
+OUTPUT_DIR: "./output/synthetic-class"

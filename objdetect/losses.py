@@ -151,7 +151,7 @@ class BoxProjectionOriginLoss(nn.Module):
 
             else:
                 original_gt_boxes.append(
-                    bi["instances"].gt_boxes.tensor[bi["original_gt"]]
+                    bi["instances"].gt_boxes.tensor[bi["original_gt"].to(torch.long)]
                 )  # Appending a Bx4
                 original_gt_mask.append(
                     torch.full(

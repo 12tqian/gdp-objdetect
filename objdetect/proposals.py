@@ -75,14 +75,8 @@ class NoisedGroundTruth(nn.Module):
 
         for bi in batched_inputs:
             gt_boxes = bi["instances"].gt_boxes.tensor
-            scale = torch.Tensor(
-                [
-                    bi["width"],  # TODO: THIS IS WRONG
-                    bi["height"],
-                    bi["width"],
-                    bi["height"],
-                ]
-            )
+            h, w = bi["image"].shape[-2:]
+            scale = torch.Tensor([w, h, w, h])
 
             if len(gt_boxes) > 0:
                 sampled_indices = torch.randint(

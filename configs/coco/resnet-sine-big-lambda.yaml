@@ -5,13 +5,16 @@ MODEL:
     NAME: "UniformRandomBoxes"
     NUM_PROPOSALS: 100
   ENCODER:
+    NAME: "ResnetEncoder"
     POSITIONAL_EMBEDDINGS:
       TYPE: "sine"
+  TRANSPORT_LOSS:
+    TRANSPORT_LAMBDA: 2.0
 SOLVER:
-  IMS_PER_BATCH: 24
+  IMS_PER_BATCH: 28
   WANDB:
     ENABLED: True
 DATASETS:
   TRAIN: ("coco_2017_train",)
   TEST: ("coco_2017_val",)
-OUTPUT_DIR: "./output/local-global-sine.yaml"
+OUTPUT_DIR: "./output/resnet-sine.yaml"

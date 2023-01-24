@@ -1,15 +1,15 @@
 _BASE_: "../base-prox.yaml"
 MODEL:
-  NUM_HORIZON: 5
+  NUM_HORIZON: 10
+  DETECTION_LOSS:
+    NAME: "BoxProjectionOriginLoss"
   TRAIN_PROPOSAL_GENERATOR:
-    NAME: "UniformRandomBoxes"
+    NAME: "NoisedGroundTruth"
+    GAUSSIAN_ERROR: 0.1
+    USE_TIME: False
     NUM_PROPOSALS: 100
-  ENCODER:
-    NAME: "ResnetEncoder"
-    POSITIONAL_EMBEDDINGS:
-      TYPE: "sine"
-  TRANSPORT_LOSS:
-    TRANSPORT_LAMBDA: 1.0
+  NETWORK:
+    PE_DIM: 4
 SOLVER:
   IMS_PER_BATCH: 9
   WANDB:
@@ -19,5 +19,5 @@ DATASETS:
   TRAIN: ("synthetic_train_10",)
   TEST:  ("synthetic_val_10",)
   AUGMENTATION:
-    ENABLED: True
-OUTPUT_DIR: "./output/synthetic-resnet-sine-normal-lambda"
+    ENABLED: False
+OUTPUT_DIR: "./output/diffusion-test"
