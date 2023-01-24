@@ -201,9 +201,8 @@ class ResidualNet(nn.Module):
                 embeddings = embeddings.to(x.dtype)
 
                 if self.use_t:
-                    x = torch.cat((x, embeddings), dim=-1)
-                    x = self.time_projections[i](x)
-                    # x += embeddings
+                    x = x + self.time_projections[i](torch.cat((x, embeddings), dim=-1))
+                    # x = x + embeddings
 
                 x = block(F, x)
         for bi, boxes in zip(batched_inputs, x):
