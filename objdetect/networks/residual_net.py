@@ -173,6 +173,7 @@ class ResidualNet(nn.Module):
             x: NxBxD
         """
         F = torch.stack([input["encoding"] for input in batched_inputs])
+        assert torch.isfinite(F).all()
         x = torch.stack([input["proposal_boxes"] for input in batched_inputs])
         if not self.use_t:
             if F.ndim == 2:
@@ -183,7 +184,7 @@ class ResidualNet(nn.Module):
                 x = block(F, x)
         else:
             t = torch.stack([input["prior_t"] for input in batched_inputs])
-
+            # t = torch.full_like(t, 500)
             if F.ndim == 2:
                 B = x.shape[1]
                 F = F.unsqueeze(1).expand(-1, B, -1)
@@ -199,6 +200,7 @@ class ResidualNet(nn.Module):
                     (embeddings.sin(), embeddings.cos()), dim=-1
                 )  # (shape(t), input_dim)
                 embeddings = embeddings.to(x.dtype)
+                # embeddings = torch.full_like(embeddings, 1)
 
                 if self.use_t:
                     x = x + self.time_projections[i](torch.cat((x, embeddings), dim=-1))
@@ -206,5 +208,5 @@ class ResidualNet(nn.Module):
 
                 x = block(F, x)
         for bi, boxes in zip(batched_inputs, x):
-                bi["pred_boxes"] = boxes
+            bi["pred_boxes"] = boxes
         return batched_inputs
