@@ -15,3 +15,5 @@ MODEL:
   ENCODER:
     NAME: LocalGlobalEncoder
   NUM_HORIZON: 2
+  NETWORK:
+    NAME: ClassResidualNet

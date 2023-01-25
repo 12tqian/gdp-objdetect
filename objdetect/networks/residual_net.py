@@ -138,6 +138,7 @@ class ResidualNet(nn.Module):
         self.time_projections = nn.ModuleList()
 
         self.blocks = nn.ModuleList()
+        self.layer_norms = nn.ModuleList()
         for i in range(num_block):
             self.time_projections.append(
                 ProjectionLayer(input_dim + position_dim, input_dim)
@@ -152,6 +153,10 @@ class ResidualNet(nn.Module):
                     include_scaling=include_scaling,
                 )
             )
+            self.layer_norms.append(
+                nn.LayerNorm(input_dim)
+            )
+
 
     @classmethod
     def from_config(cls, cfg):
@@ -206,6 +211,8 @@ class ResidualNet(nn.Module):
                     x = x + self.time_projections[i](torch.cat((x, embeddings), dim=-1))
                     # x = x + embeddings
 
+                
+                x = self.layer_norms[i](x)
                 x = block(F, x)
         for bi, boxes in zip(batched_inputs, x):
             bi["pred_boxes"] = boxes

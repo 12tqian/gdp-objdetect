@@ -415,7 +415,7 @@ class ClassificationBoxProjectionLoss(nn.Module):
             torch.full_like(classification_loss, 0),
         )
 
-        loss = classification_loss + projection_loss
+        loss = classification_loss/20 + projection_loss
 
         for bi, lo in zip(batched_inputs, loss):
             assert torch.isfinite(lo).all()
