@@ -3,6 +3,7 @@ MODEL:
   NUM_HORIZON: 10
   DETECTION_LOSS:
     NAME: "ClassificationBoxProjectionLoss"
+    CLASSIFICATION_LAMBDA: 0.1
   TRAIN_PROPOSAL_GENERATOR:
     NAME: "UniformRandomBoxes"
     NUM_PROPOSALS: 100

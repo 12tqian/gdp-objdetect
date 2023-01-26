@@ -183,12 +183,15 @@ class BoxProjectionOriginLoss(nn.Module):
 @LOSS_REGISTRY.register()
 class ClassificationLoss(nn.Module):
     @configurable
-    def __init__(self):
+    def __init__(self, classification_lambda: float):
         super().__init__()
+        self.transport_lambda = classification_lambda
 
     @classmethod
     def from_config(cls, cfg):
-        return {}
+        return {
+            "classification_lambda": cfg.MODEL.CLASSIFICATION_LOSS.CLASSIFICATION_LAMBDA,
+        }
 
     def box_distances(self, box1, box2):
         box1 = box1.unsqueeze(-2)  # N x A x 1 x 4
@@ -287,6 +290,7 @@ class ClassificationLoss(nn.Module):
             loss,
             torch.full_like(loss, 0),
         )
+        loss = loss * self.classification_lambda
 
         for bi, lo in zip(batched_inputs, loss):
             assert torch.isfinite(lo).all()
@@ -304,12 +308,15 @@ class ClassificationLoss(nn.Module):
 @LOSS_REGISTRY.register()
 class ClassificationBoxProjectionLoss(nn.Module):
     @configurable
-    def __init__(self):
+    def __init__(self, classification_lambda: float):
         super().__init__()
+        self.transport_lambda = classification_lambda
 
     @classmethod
     def from_config(cls, cfg):
-        return {}
+        return {
+            "classification_lambda": cfg.MODEL.DETECTION_LOSS.CLASSIFICATION_LAMBDA,
+        }
 
     def box_distances(self, box1, box2):
         box1 = box1.unsqueeze(-2)  # N x A x 1 x 4
@@ -410,18 +417,25 @@ class ClassificationBoxProjectionLoss(nn.Module):
             classification_loss,
             torch.full_like(classification_loss, 0),
         )
+        classification_loss = classification_loss * self.classification_lambda
 
-        loss = classification_loss + projection_loss
 
-        for bi, lo in zip(batched_inputs, loss):
-            assert torch.isfinite(lo).all()
+        for bi, class_lo, proj_lo in zip(batched_inputs, classification_loss, projection_loss):
+            assert torch.isfinite(class_lo).all()
+            assert torch.isfinite(proj_lo).all()
             loss_dict = bi["loss_dict"]
-            if "classification_projection_loss" in loss_dict:
-                loss_dict["classification_projection_loss"] = (
-                    loss_dict["classification_projection_loss"] + lo
+            if "classification_loss" in loss_dict:
+                loss_dict["classification_loss"] = (
+                    loss_dict["classification_loss"] + class_lo
                 )
             else:
-                loss_dict["classification_projection_loss"] = lo
+                loss_dict["classification_loss"] = class_lo
+            if "projection_loss" in loss_dict:
+                loss_dict["projection_loss"] = (
+                    loss_dict["projection_loss"] + proj_lo
+                )
+            else:
+                loss_dict["projection_loss"] = proj_lo
 
         # breakpoint()
 
