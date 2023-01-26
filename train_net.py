@@ -1,3 +1,4 @@
+from detectron2.config import CfgNode as CN
 from objdetect_logger import ObjdetectLogger
 import logging
 import itertools
@@ -30,6 +31,7 @@ from tqdm import tqdm
 from objdetect import ProxModelDatasetMapper, add_proxmodel_cfg
 from objdetect.utils.wandb_utils import get_logged_batched_input_wandb
 from datetime import datetime
+from objdetect.config import update_config_with_dict
 
 logger = logging.getLogger("detectron2")
 
@@ -226,7 +228,6 @@ def setup(args):
     add_proxmodel_cfg(cfg, args.config_file)
     # cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
-    cfg.freeze()
     default_setup(
         cfg, args
     )  # if you don't like any of the default setup, write your own setup code
@@ -237,6 +238,10 @@ def main(args):
     cfg = setup(args)
     model = build_model(cfg)
     accelerator = Accelerator()
+    cfg.SOLVER.ACCELERATOR_STATE = CN()
+    update_config_with_dict(cfg.SOLVER.ACCELERATOR_STATE, vars(accelerator.state))
+
+    cfg.freeze()
 
     objdetect_logger = ObjdetectLogger(cfg, is_main_process=accelerator.is_main_process)
 
