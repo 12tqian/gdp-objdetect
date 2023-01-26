@@ -305,6 +305,7 @@ def setup(args):
     default_setup(
         cfg, args
     )  # if you don't like any of the default setup, write your own setup code
+    cfg.NAME = args.config_file[10:-5]
     return cfg
 
 
@@ -315,8 +316,6 @@ def main(args):
 
     cfg.SOLVER.ACCELERATOR_STATE = CN()
     update_config_with_dict(cfg.SOLVER.ACCELERATOR_STATE, vars(accelerator.state))
-    cfg.NAME = args.config_file[10:-5]
-    print(cfg.NAME)
 
     cfg.freeze()
 
