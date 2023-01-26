@@ -29,7 +29,6 @@ from detectron2.solver.build import maybe_add_gradient_clipping
 from torch.profiler import ProfilerActivity, profile, record_function
 from tqdm import tqdm
 from objdetect import ProxModelDatasetMapper, add_proxmodel_cfg
-from objdetect.utils.wandb_utils import get_logged_batched_input_wandb
 from datetime import datetime
 from objdetect.config import update_config_with_dict
 
