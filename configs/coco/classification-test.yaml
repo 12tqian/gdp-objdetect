@@ -4,13 +4,15 @@ MODEL:
   DETECTION_LOSS:
     NAME: "ClassificationBoxProjectionLoss"
   TRAIN_PROPOSAL_GENERATOR:
-    NAME: "RandomUniformBoxes"
+    NAME: "UniformRandomBoxes"
     NUM_PROPOSALS: 100
   NETWORK:
     POSITION_DIM: 4
     POSITION_SCALE: 8
+    NAME: "ClassResidualNet"
 SOLVER:
-  IMS_PER_BATCH: 9
+  # MAX_ITER: 100
+  IMS_PER_BATCH: 8
   WANDB:
     ENABLED: True
     LOG_FREQUENCY: 20
@@ -20,8 +22,8 @@ SOLVER:
     CLIP_VALUE: 1.0
     NORM_TYPE: 2.0
 DATASETS:
-  TRAIN: ("synthetic_train_1000",)
-  TEST:  ("synthetic_val_1000",)
+  TRAIN: ("coco_2017_train_1000small",)
+  TEST:  ("coco_2017_val",)
   AUGMENTATION:
     ENABLED: False
 OUTPUT_DIR: "./output/classification-test"
