@@ -6,6 +6,7 @@ from .encoders.resnet_pe_flatten import ResnetEncoderPEFlatten
 from .prox_model import ProxModel
 from .proposals import UniformRandomBoxes
 from .losses import BoxDistanceLoss, BoxProjectionLoss
+from .networks.time_residual_net import TimeResidualNet
 from .networks.residual_net import ResidualNet
 from .networks.class_residual_net import ClassResidualNet
 from .datasets.synthetic_dataset import (

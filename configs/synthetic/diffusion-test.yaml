@@ -9,12 +9,18 @@ MODEL:
     USE_TIME: True
     NUM_PROPOSALS: 100
   NETWORK:
-    PE_DIM: 4
+    POSITION_DIM: 4
+    POSITION_SCALE: 8
 SOLVER:
   IMS_PER_BATCH: 9
   WANDB:
     ENABLED: True
     LOG_FREQUENCY: 20
+  CLIP_GRADIENTS:
+    ENABLED: True
+    CLIP_TYPE: "full_model"
+    CLIP_VALUE: 1.0
+    NORM_TYPE: 2.0
 DATASETS:
   TRAIN: ("synthetic_train_10",)
   TEST:  ("synthetic_val_10",)

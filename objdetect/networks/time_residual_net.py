@@ -47,6 +47,20 @@ class ProjectionLayer(nn.Module):
     def forward(self, x):
         return self.proj(x)
 
+class SinusoidalPositionEmbeddings(nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.dim = dim
+
+    def forward(self, time):
+        device = time.device
+        half_dim = self.dim // 2
+        embeddings = math.log(10000) / (half_dim - 1)
+        embeddings = torch.exp(torch.arange(half_dim, device=device) * -embeddings)
+        embeddings = time[:, None] * embeddings[None, :]
+        embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1).to(time.dtype)
+        return embeddings
+
 
 class ResidualBlock(nn.Module):
     def __init__(
@@ -101,7 +115,7 @@ class ResidualBlock(nn.Module):
 
 # TODO: change to cfg format
 @NETWORK_REGISTRY.register()
-class ResidualNet(nn.Module):
+class TimeResidualNet(nn.Module):
     @configurable
     def __init__(
         self,
@@ -115,14 +129,15 @@ class ResidualNet(nn.Module):
         use_difference: bool = True,
         include_scaling: bool = True,
         use_t: bool,
-        position_dim: int,
+        position_scale: int
     ):
         super().__init__()
+        self.position_scale = position_scale
         self.input_dim = input_dim
         self.feature_dim = feature_dim
         self.hidden_size = hidden_size
         self.use_t = use_t
-        self.position_dim = position_dim
+        self.position_dim = input_dim * 4
         self.input_proj = (
             ProjectionLayer(input_dim, input_proj_dim)
             if input_proj_dim is not None
@@ -136,11 +151,20 @@ class ResidualNet(nn.Module):
         )
 
         self.time_projections = nn.ModuleList()
+        self.block_time_mlps = nn.ModuleList()
 
         self.blocks = nn.ModuleList()
         for i in range(num_block):
             self.time_projections.append(
-                ProjectionLayer(input_dim + position_dim, input_dim)
+                 nn.Sequential(
+                    SinusoidalPositionEmbeddings(input_dim),
+                    nn.Linear(input_dim, self.position_dim),
+                    nn.GELU(),
+                    nn.Linear(self.position_dim, self.position_dim),
+                )
+            )
+            self.block_time_mlps.append(
+                nn.Sequential(nn.SiLU(), nn.Linear(input_dim * 4, input_dim * 2))
             )
             self.blocks.append(
                 ResidualBlock(
@@ -163,7 +187,7 @@ class ResidualNet(nn.Module):
             "feature_proj_dim": cfg.MODEL.NETWORK.FEATURE_PROJ_DIM,
             "input_proj_dim": cfg.MODEL.NETWORK.INPUT_PROJ_DIM,
             "use_t": cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.USE_TIME,
-            "position_dim": cfg.MODEL.NETWORK.POSITION_DIM,
+            "position_scale": cfg.MODEL.NETWORK.POSITION_SCALE
         }
 
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
@@ -183,30 +207,41 @@ class ResidualNet(nn.Module):
             for block in self.blocks:
                 x = block(F, x)
         else:
-            t = torch.stack([input["prior_t"] for input in batched_inputs])
+            t = torch.stack([input["prior_t"] for input in batched_inputs]).to(x.dtype)
             # t = torch.full_like(t, 500)
             if F.ndim == 2:
                 B = x.shape[1]
                 F = F.unsqueeze(1).expand(-1, B, -1)
-
             for i, block in enumerate(self.blocks):
-                half_dim = self.position_dim // 2
-                embeddings = math.log(10000) / (half_dim - 1)
-                embeddings = torch.exp(
-                    torch.arange(half_dim, device=x.device) * -embeddings
-                )  # (1, half_dim)
-                embeddings = t[..., None] * embeddings[None, :]
-                embeddings = torch.cat(
-                    (embeddings.sin(), embeddings.cos()), dim=-1
-                )  # (shape(t), input_dim)
-                embeddings = embeddings.to(x.dtype)
-                # embeddings = torch.full_like(embeddings, 1)
-
-                if self.use_t:
-                    x = x + self.time_projections[i](torch.cat((x, embeddings), dim=-1))
-                    # x = x + embeddings
-
+                N, B = x.shape[:2]
                 x = block(F, x)
+                if self.use_t:
+                    time = self.time_projections[i](t.reshape((N * B,)))
+                    scale_shift = self.block_time_mlps[i](time)
+                    # scale_shift = torch.repeat_interleave(scale_shift, N * B, dim=0)
+                    scale, shift = scale_shift.chunk(2, dim=1)
+                    scale = scale.reshape((N, B, -1))
+                    shift = shift.reshape((N, B, -1))
+                    x = x * (scale + 1) + shift
+
+                # embeddings = torch.full_like(embeddings, 1)
+                # half_dim = self.position_dim // 2
+                # embeddings = math.log(10000) / (half_dim - 1)
+                # embeddings = torch.exp(
+                #     torch.arange(half_dim, device=x.device) * -embeddings
+                # )  # (1, half_dim)
+                # embeddings = t[..., None] * embeddings[None, :]
+                # embeddings = torch.cat(
+                #     (embeddings.sin(), embeddings.cos()), dim=-1
+                # )  # (shape(t), input_dim)
+                # embeddings = embeddings.to(x.dtype)
+                # # embeddings = torch.full_like(embeddings, 1)
+
+                # if self.use_t:
+                #     x = x + self.time_projections[i](torch.cat((x, embeddings), dim=-1))
+                #     # x = x + embeddings
+
+                # x = block(F, x)
 
         for bi, boxes in zip(batched_inputs, x):
             bi["pred_boxes"] = boxes
