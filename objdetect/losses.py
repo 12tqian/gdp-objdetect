@@ -188,8 +188,7 @@ class ClassificationLoss(nn.Module):
 
     @classmethod
     def from_config(cls, cfg):
-        return {
-        }
+        return {}
 
     def box_distances(self, box1, box2):
         box1 = box1.unsqueeze(-2)  # N x A x 1 x 4
@@ -310,8 +309,7 @@ class ClassificationBoxProjectionLoss(nn.Module):
 
     @classmethod
     def from_config(cls, cfg):
-        return {
-        }
+        return {}
 
     def box_distances(self, box1, box2):
         box1 = box1.unsqueeze(-2)  # N x A x 1 x 4
@@ -365,14 +363,12 @@ class ClassificationBoxProjectionLoss(nn.Module):
             box_distances,
             torch.full_like(box_distances, 1e8),
         )
-        
-        
 
-        projection_loss, closest_gt_boxes = box_distances_masked.min(
-            -1
-        )  # both N x A
+        projection_loss, closest_gt_boxes = box_distances_masked.min(-1)  # both N x A
         masks_gathered = torch.gather(gt_masks, 1, closest_gt_boxes)  # N x A
-        projection_loss = torch.where(masks_gathered, projection_loss, torch.zeros_like(projection_loss))  # N x A
+        projection_loss = torch.where(
+            masks_gathered, projection_loss, torch.zeros_like(projection_loss)
+        )  # N x A
 
         target_gt_classes = []
         gt_is_not_empty_mask = []
@@ -421,7 +417,9 @@ class ClassificationBoxProjectionLoss(nn.Module):
             assert torch.isfinite(lo).all()
             loss_dict = bi["loss_dict"]
             if "classification_projection_loss" in loss_dict:
-                loss_dict["classification_projection_loss"] = loss_dict["classification_projection_loss"] + lo
+                loss_dict["classification_projection_loss"] = (
+                    loss_dict["classification_projection_loss"] + lo
+                )
             else:
                 loss_dict["classification_projection_loss"] = lo
 
