@@ -315,6 +315,8 @@ def main(args):
 
     cfg.SOLVER.ACCELERATOR_STATE = CN()
     update_config_with_dict(cfg.SOLVER.ACCELERATOR_STATE, vars(accelerator.state))
+    cfg.NAME = args.config_file[10:-5]
+    print(cfg.NAME)
 
     cfg.freeze()
 
