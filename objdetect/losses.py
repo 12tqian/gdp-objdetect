@@ -190,7 +190,7 @@ class ClassificationLoss(nn.Module):
     @classmethod
     def from_config(cls, cfg):
         return {
-            "classification_lambda": cfg.MODEL.CLASSIFICATION_LOSS.CLASSIFICATION_LAMBDA,
+            "classification_lambda": cfg.MODEL.DETECTION_LOSS.CLASSIFICATION_LAMBDA,
         }
 
     def box_distances(self, box1, box2):
@@ -310,7 +310,7 @@ class ClassificationBoxProjectionLoss(nn.Module):
     @configurable
     def __init__(self, classification_lambda: float):
         super().__init__()
-        self.transport_lambda = classification_lambda
+        self.classification_lambda = classification_lambda
 
     @classmethod
     def from_config(cls, cfg):
