@@ -6,7 +6,7 @@ MODEL:
   TRAIN_PROPOSAL_GENERATOR:
     NAME: "NoisedGroundTruth"
     GAUSSIAN_ERROR: 0.1
-    USE_TIME: False
+    USE_TIME: True
     NUM_PROPOSALS: 100
   NETWORK:
     PE_DIM: 4

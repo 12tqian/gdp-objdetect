@@ -205,6 +205,7 @@ class ResidualNet(nn.Module):
                     # x = x + embeddings
 
                 x = block(F, x)
+
         for bi, boxes in zip(batched_inputs, x):
                 bi["pred_boxes"] = boxes
         return batched_inputs
