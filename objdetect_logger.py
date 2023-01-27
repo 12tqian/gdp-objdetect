@@ -1,9 +1,54 @@
 from tqdm import tqdm
 import torch
 from detectron2.config import configurable
-from objdetect.utils.wandb_utils import get_logged_batched_input_wandb
 from datetime import datetime
 import wandb
+
+
+def convert_box_tensor_wandb(
+    boxes: torch.Tensor, class_logits: torch.Tensor = None, classes=None
+):
+
+    if class_logits is not None:
+        classes = class_logits.argmax(-1)
+
+    wandb_obj = []
+    for i, box in enumerate(boxes):
+        obj = {
+            "position": {
+                "minX": box[0].item(),
+                "minY": box[1].item(),
+                "maxX": box[2].item(),
+                "maxY": box[3].item(),
+            },
+            "scores": {},
+            "box_caption": "testing",
+            "domain": "pixel",
+        }
+
+        obj["class_id"] = classes[i].item() if classes is not None else -1
+
+        wandb_obj.append(obj)
+    return {"box_data": wandb_obj}
+
+
+def get_logged_batched_input_wandb(bi: dict[str, torch.Tensor]):
+    boxes_input = {}
+    if "proposal_boxes" in bi:
+        boxes_input["proposal_boxes"] = convert_box_tensor_wandb(bi["proposal_boxes"])
+
+    if "pred_boxes" in bi:
+        boxes_input["pred_boxes"] = convert_box_tensor_wandb(
+            bi["pred_boxes"], class_logits=bi.get("class_logits", None)
+        )
+
+    if "instances" in bi:
+        boxes_input["gt_boxes"] = convert_box_tensor_wandb(
+            bi["instances"].gt_boxes.tensor, classes=bi["instances"].gt_classes
+        )
+
+    img = wandb.Image(bi["image"].float(), boxes=boxes_input)
+    return img
 
 
 class ObjdetectLogger:
