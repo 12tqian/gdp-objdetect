@@ -5,10 +5,11 @@ MODEL:
     NAME: "BoxProjectionOriginLoss"
   TRAIN_PROPOSAL_GENERATOR:
     NAME: "NoisedGroundTruth"
-    GAUSSIAN_ERROR: 0.1
+    GAUSSIAN_ERROR: 0.0001
     USE_TIME: True
     NUM_PROPOSALS: 100
   NETWORK:
+    NAME: "TimeResidualNet"
     POSITION_DIM: 4
     POSITION_SCALE: 8
 SOLVER:
@@ -26,4 +27,4 @@ DATASETS:
   TEST:  ("synthetic_val_10",)
   AUGMENTATION:
     ENABLED: False
-OUTPUT_DIR: "./output/diffusion-test"
+OUTPUT_DIR: "./output/diffusion-test-scale-shift"
