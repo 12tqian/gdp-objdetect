@@ -10,6 +10,8 @@ MODEL:
 SOLVER:
   IMS_PER_BATCH: 8
   BASE_LR: 0.001
+  WANDB:
+    ENABLED: True
 INPUT:
   CROP:
     ENABLED: True
@@ -18,4 +20,4 @@ DATASETS:
   TEST:  ("synthetic_val_10",)
   AUGMENTATION:
     ENABLED: False
-OUTPUT_DIR: "./output/synthetic-local-global-sine"
+OUTPUT_DIR: "./output/synthetic-local-global-sine-2"

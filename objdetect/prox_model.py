@@ -44,7 +44,7 @@ class ProxModel(nn.Module):
         network: nn.Module,
         transport_loss: nn.Module,
         detection_loss: nn.Module,
-        classification_loss: nn.Module,
+        # classification_loss: nn.Module,
         pixel_mean: Tuple[float],
         pixel_std: Tuple[float],
         input_format: Optional[str] = None,
@@ -69,7 +69,7 @@ class ProxModel(nn.Module):
         self.network = network
         self.transport_loss = transport_loss
         self.detection_loss = detection_loss
-        self.classification_loss = classification_loss
+        # self.classification_loss = classification_loss
 
         self.input_format = input_format
         self.vis_period = vis_period
@@ -110,7 +110,7 @@ class ProxModel(nn.Module):
 
         transport_loss = LOSS_REGISTRY.get(cfg.MODEL.TRANSPORT_LOSS.NAME)(cfg)
         detection_loss = LOSS_REGISTRY.get(cfg.MODEL.DETECTION_LOSS.NAME)(cfg)
-        classification_loss = LOSS_REGISTRY.get(cfg.MODEL.CLASSIFICATION_LOSS.NAME)(cfg)
+        # classification_loss = LOSS_REGISTRY.get(cfg.MODEL.CLASSIFICATION_LOSS.NAME)(cfg)
 
         return {
             "train_proposal_generator": train_proposal_generator,
@@ -122,7 +122,7 @@ class ProxModel(nn.Module):
             "network": network,
             "transport_loss": transport_loss,
             "detection_loss": detection_loss,
-            "classification_loss": classification_loss,
+            # "classification_loss": classification_loss,
             "input_format": cfg.INPUT.FORMAT,
             "vis_period": cfg.VIS_PERIOD,
             "pixel_mean": cfg.MODEL.PIXEL_MEAN,
@@ -258,9 +258,10 @@ class ProxModel(nn.Module):
                 self.inference_num_proposals, batched_inputs
             )
         self.move_to_device(batched_inputs)
-
+        # breakpoint()
         for _ in range(repetitions):
             self.normalize_boxes(batched_inputs)
+            # breakpoint()
 
             batched_inputs = self.encoder(batched_inputs)
             batched_inputs = self.network(batched_inputs)
@@ -292,12 +293,13 @@ class ProxModel(nn.Module):
             # breakpoint()
             result = Instances(image_size)
             result.pred_boxes = Boxes(bi["pred_boxes"])
-            result.scores = torch.max(F.softmax(bi["class_logits"], dim=-1), dim=-1)[
-                0
-            ]  # all shape BxC TODO: This seems like what diffusiondet does but make sure
-            result.pred_classes = torch.argmax(
-                bi["class_logits"], dim=-1
-            )  # all shape B
+            if "class_logits" in bi: # TODO: 
+                result.scores = torch.max(F.softmax(bi["class_logits"], dim=-1), dim=-1)[
+                    0
+                ]  # all shape BxC TODO: This seems like what diffusiondet does but make sure
+                result.pred_classes = torch.argmax(
+                    bi["class_logits"], dim=-1
+                )  # all shape B
 
             # print(bi["instances"].pred_classes.shape)
             r = detector_postprocess(result, height, width)

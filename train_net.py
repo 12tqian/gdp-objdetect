@@ -87,13 +87,26 @@ def get_evaluator(cfg, dataset_name, output_folder=None):
             )
         )
     if len(evaluator_list) == 1:
-        return evaluator_list[0]
+        return evaluator_list[0] 
     return DatasetEvaluators(evaluator_list)
 
+def do_test_metrics(cfg, model, objdetect_logger: ObjdetectLogger = None):
+    results = OrderedDict()
+    mapper = ProxModelDatasetMapper(cfg, is_train=True)
+    model.eval()
+    for dataset_name in cfg.DATASETS.TEST:
+        from objdetect.evaluation.eval import evaluate    
+        data_loader = build_detection_test_loader(cfg, dataset_name, mapper=mapper)
+        results_i = evaluate(model, data_loader)
+    return {
+        "match_precision": results_i["match_precision"],
+        "match_recall": results_i["match_recall"],
+    }
 
 def do_test(cfg, model):
     results = OrderedDict()
     mapper = ProxModelDatasetMapper(cfg, is_train=False)
+    model.eval()
     for dataset_name in cfg.DATASETS.TEST:
         data_loader = build_detection_test_loader(cfg, dataset_name, mapper=mapper)
         evaluator = get_evaluator(
@@ -273,6 +286,11 @@ def do_train(
                         "lr": optimizer.param_groups[0]["lr"],
                     }
                 )
+                if (step - 1) % cfg.TEST.EVAL_PERIOD == 0:
+                    results_i = do_test_metrics(cfg, model, objdetect_logger)
+                    log_dict.update(results_i)
+                    model.train()
+                    
                 objdetect_logger.end_iteration(
                     batched_inputs,
                     log_dict,
@@ -322,12 +340,12 @@ def main(args):
         DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
             cfg.MODEL.WEIGHTS, resume=args.resume
         )
-        return do_test(cfg, model)
+        return do_test_metrics(cfg, model, objdetect_logger)
 
     objdetect_logger = ObjdetectLogger(cfg, is_main_process=accelerator.is_main_process)
 
     do_train(cfg, model, accelerator, objdetect_logger, args.resume)
-    return do_test(cfg, model)
+    return do_test_metrics(cfg, model, objdetect_logger)
 
 
 if __name__ == "__main__":
