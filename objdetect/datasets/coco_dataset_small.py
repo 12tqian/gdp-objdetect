@@ -17,6 +17,26 @@ def coco_small_train_function():
         dataset_name=f"coco_2017_train_1000small",
     )
 
+def coco_10small_train_function():
+    # with open(f'/mnt/tcqian/danielxu/gdp-objdetect/datasets/coco/annotations/instances_train2017_10small.json', 'r') as fp:
+    #     dataset = json.load(fp)
+
+    return load_coco_json(
+        json_file=f"/mnt/tcqian/danielxu/gdp-objdetect/datasets/coco/annotations/instances_train2017_10small.json",
+        image_root=f"/mnt/tcqian/danielxu/gdp-objdetect/datasets/coco/train2017",
+        dataset_name=f"coco_2017_train_10small",
+    )
+
+def coco_1small_train_function():
+    # with open(f'/mnt/tcqian/danielxu/gdp-objdetect/datasets/coco/annotations/instances_train2017_10small.json', 'r') as fp:
+    #     dataset = json.load(fp)
+
+    return load_coco_json(
+        json_file=f"/mnt/tcqian/danielxu/gdp-objdetect/datasets/coco/annotations/instances_train2017_1small.json",
+        image_root=f"/mnt/tcqian/danielxu/gdp-objdetect/datasets/coco/train2017",
+        dataset_name=f"coco_2017_train_1small",
+    )
+
 
 def coco_small_val_function():
     # with open(f'/mnt/tcqian/danielxu/gdp-objdetect/datasets/coco/annotations/instances_train2017_1000small.json', 'r') as fp:
@@ -32,6 +52,8 @@ def coco_small_val_function():
 from detectron2.data import DatasetCatalog
 
 DatasetCatalog.register("coco_2017_train_1000small", coco_small_train_function)
+DatasetCatalog.register("coco_2017_train_10small", coco_10small_train_function)
+DatasetCatalog.register("coco_2017_train_1small", coco_1small_train_function)
 DatasetCatalog.register("coco_2017_val_small", coco_small_val_function)
 
 from detectron2.data import MetadataCatalog

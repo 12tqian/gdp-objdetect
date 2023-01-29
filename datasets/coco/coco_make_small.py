@@ -21,18 +21,18 @@ print(dataset["images"][5]["id"])
 print(len(dataset["annotations"]))
 print(dataset["annotations"][0])
 
-image_id_list = [x["id"] for x in dataset["images"][:1000]]
-print(image_id_list[:100])
+image_id_list = [x["id"] for x in dataset["images"][49:50]]
+print(image_id_list[:1])
 
 dataset["annotations"] = [
     x for x in dataset["annotations"] if x["image_id"] in image_id_list
 ]
 print(len(dataset["annotations"]))
 
-dataset["images"] = dataset["images"][:1000]
+dataset["images"] = dataset["images"][49:50]
 
 with open(
-    f"/mnt/tcqian/danielxu/gdp-objdetect/datasets/coco/annotations/instances_train2017_1000small.json",
+    f"/mnt/tcqian/danielxu/gdp-objdetect/datasets/coco/annotations/instances_train2017_1small.json",
     "w",
 ) as fpw:
     json.dump(dataset, fpw)

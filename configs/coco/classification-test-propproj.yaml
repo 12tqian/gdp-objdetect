@@ -2,8 +2,10 @@ _BASE_: "../base-prox.yaml"
 MODEL:
   NUM_HORIZON: 1
   DETECTION_LOSS:
-    NAME: "ClassificationBoxProjectionLoss"
+    NAME: "ClassificationBoxProposalProjectionLoss"
     CLASSIFICATION_LAMBDA: 0.001
+  TRANSPORT_LOSS:
+    TRANSPORT_LAMBDA: 0
   TRAIN_PROPOSAL_GENERATOR:
     NAME: "UniformRandomBoxes"
     NUM_PROPOSALS: 100
