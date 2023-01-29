@@ -87,11 +87,12 @@ def get_evaluator(cfg, dataset_name, output_folder=None):
                 dataset_name, evaluator_type
             )
         )
-    evaluator_list = [] # TODO: hack
+    evaluator_list = []  # TODO: hack
     evaluator_list.append(LingxiaoEvaluator())
     if len(evaluator_list) == 1:
         return evaluator_list[0]
     return DatasetEvaluators(evaluator_list)
+
 
 def do_test(cfg, model):
     results = OrderedDict()
@@ -284,7 +285,6 @@ def do_train(
                     log_dict.update(results_i)
                     model.train()
 
-                
                 objdetect_logger.end_iteration(
                     batched_inputs,
                     log_dict,
