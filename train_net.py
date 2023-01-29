@@ -87,21 +87,24 @@ def get_evaluator(cfg, dataset_name, output_folder=None):
             )
         )
     if len(evaluator_list) == 1:
-        return evaluator_list[0] 
+        return evaluator_list[0]
     return DatasetEvaluators(evaluator_list)
+
 
 def do_test_metrics(cfg, model, objdetect_logger: ObjdetectLogger = None):
     results = OrderedDict()
     mapper = ProxModelDatasetMapper(cfg, is_train=True)
     model.eval()
     for dataset_name in cfg.DATASETS.TEST:
-        from objdetect.evaluation.eval import evaluate    
+        from objdetect.evaluation.eval import evaluate
+
         data_loader = build_detection_test_loader(cfg, dataset_name, mapper=mapper)
         results_i = evaluate(model, data_loader)
     return {
         "match_precision": results_i["match_precision"],
         "match_recall": results_i["match_recall"],
     }
+
 
 def do_test(cfg, model):
     results = OrderedDict()
@@ -119,6 +122,10 @@ def do_test(cfg, model):
             print_csv_format(results_i)
     if len(results) == 1:
         results = list(results.values())[0]
+
+    results = results["bbox"]
+
+    model.train()
     return results
 
 
@@ -236,7 +243,6 @@ def do_train(
 
     it_item = zip(data_loader, range(start_iter, cfg.SOLVER.MAX_ITER))
 
-    objdetect_logger.maybe_init_wandb()
     objdetect_logger.begin_training(start_iter, cfg.SOLVER.MAX_ITER)
 
     use_profile = cfg.SOLVER.PROFILE and accelerator.is_main_process
@@ -287,10 +293,10 @@ def do_train(
                     }
                 )
                 if (step - 1) % cfg.TEST.EVAL_PERIOD == 0:
-                    results_i = do_test_metrics(cfg, model, objdetect_logger)
+                    results_i = do_test(cfg, model)
                     log_dict.update(results_i)
                     model.train()
-                    
+
                 objdetect_logger.end_iteration(
                     batched_inputs,
                     log_dict,
@@ -334,8 +340,6 @@ def main(args):
     cfg.SOLVER.ACCELERATOR_STATE = CN()
     update_config_with_dict(cfg.SOLVER.ACCELERATOR_STATE, vars(accelerator.state))
 
-    cfg.freeze()
-
     if args.eval_only:
         DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
             cfg.MODEL.WEIGHTS, resume=args.resume
@@ -343,6 +347,12 @@ def main(args):
         return do_test_metrics(cfg, model, objdetect_logger)
 
     objdetect_logger = ObjdetectLogger(cfg, is_main_process=accelerator.is_main_process)
+    objdetect_logger.maybe_init_wandb()
+
+    if wandb.run is not None:
+        cfg.OUTPUT_DIR = os.path.join(cfg.OUTPUT_DIR, wandb.run.name)
+
+    cfg.freeze()
 
     do_train(cfg, model, accelerator, objdetect_logger, args.resume)
     return do_test_metrics(cfg, model, objdetect_logger)
