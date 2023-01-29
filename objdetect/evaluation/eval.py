@@ -134,7 +134,7 @@ def evaluate(
     num_total_gt = 0
     # pbar = tqdm(enumerate(scenes[:4]))
 
-    from pol.utils.validation.mso_eval import MSOEvaluation, MSOSolution
+    from .mso_eval import MSOEvaluation, MSOSolution
 
     witness_results = []
     for batched_inputs in data_loader:
