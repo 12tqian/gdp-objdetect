@@ -107,7 +107,9 @@ def convert_box_tensor_wandb(
                 "maxX": box[2].item(),
                 "maxY": box[3].item(),
             },
-            "scores": {},
+            "scores": {
+                "confidence": class_logits[i].max().item() if class_logits is not None else 1.0
+            },
             # "box_caption": "testing",
             "domain": "pixel",
         }
