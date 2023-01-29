@@ -45,6 +45,7 @@ from tqdm import tqdm
 from objdetect import ProxModelDatasetMapper, add_proxmodel_cfg
 from datetime import datetime
 from objdetect.config import update_config_with_dict
+from objdetect.evaluation.eval import LingxiaoEvaluator
 
 logger = logging.getLogger("detectron2")
 
@@ -86,26 +87,15 @@ def get_evaluator(cfg, dataset_name, output_folder=None):
                 dataset_name, evaluator_type
             )
         )
+    evaluator_list = [] # TODO: hack
+    evaluator_list.append(LingxiaoEvaluator())
     if len(evaluator_list) == 1:
         return evaluator_list[0] 
     return DatasetEvaluators(evaluator_list)
 
-def do_test_metrics(cfg, model, objdetect_logger: ObjdetectLogger = None):
-    results = OrderedDict()
-    mapper = ProxModelDatasetMapper(cfg, is_train=True)
-    model.eval()
-    for dataset_name in cfg.DATASETS.TEST:
-        from objdetect.evaluation.eval import evaluate    
-        data_loader = build_detection_test_loader(cfg, dataset_name, mapper=mapper)
-        results_i = evaluate(model, data_loader)
-    return {
-        "match_precision": results_i["match_precision"],
-        "match_recall": results_i["match_recall"],
-    }
-
 def do_test(cfg, model):
     results = OrderedDict()
-    mapper = ProxModelDatasetMapper(cfg, is_train=False)
+    mapper = ProxModelDatasetMapper(cfg, is_train=True)
     model.eval()
     for dataset_name in cfg.DATASETS.TEST:
         data_loader = build_detection_test_loader(cfg, dataset_name, mapper=mapper)
@@ -114,9 +104,8 @@ def do_test(cfg, model):
         )
         results_i = inference_on_dataset(model, data_loader, evaluator)
         results[dataset_name] = results_i
-        if comm.is_main_process():
-            logger.info("Evaluation results for {} in csv format:".format(dataset_name))
-            print_csv_format(results_i)
+        logger.info("Evaluation results for {} in csv format:".format(dataset_name))
+        print_csv_format(results_i)
     if len(results) == 1:
         results = list(results.values())[0]
     return results
@@ -286,11 +275,16 @@ def do_train(
                         "lr": optimizer.param_groups[0]["lr"],
                     }
                 )
-                if (step - 1) % cfg.TEST.EVAL_PERIOD == 0:
-                    results_i = do_test_metrics(cfg, model, objdetect_logger)
+                if step % cfg.TEST.EVAL_PERIOD == 0 and accelerator.is_main_process:
+                    accelerator.wait_for_everyone()
+                    breakpoint()
+                    tqdm.write("Validating model:")
+                    results_i = do_test(cfg, model)
                     log_dict.update(results_i)
                     model.train()
-                    
+                    accelerator.wait_for_everyone()
+
+                
                 objdetect_logger.end_iteration(
                     batched_inputs,
                     log_dict,
@@ -340,12 +334,12 @@ def main(args):
         DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
             cfg.MODEL.WEIGHTS, resume=args.resume
         )
-        return do_test_metrics(cfg, model, objdetect_logger)
+        return do_test(cfg, model)
 
     objdetect_logger = ObjdetectLogger(cfg, is_main_process=accelerator.is_main_process)
 
     do_train(cfg, model, accelerator, objdetect_logger, args.resume)
-    return do_test_metrics(cfg, model, objdetect_logger)
+    return do_test(cfg, model)
 
 
 if __name__ == "__main__":
