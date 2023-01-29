@@ -93,25 +93,6 @@ def get_evaluator(cfg, dataset_name, output_folder=None):
         return evaluator_list[0]
     return DatasetEvaluators(evaluator_list)
 
-<<<<<<< HEAD
-=======
-
-def do_test_metrics(cfg, model, objdetect_logger: ObjdetectLogger = None):
-    results = OrderedDict()
-    mapper = ProxModelDatasetMapper(cfg, is_train=True)
-    model.eval()
-    for dataset_name in cfg.DATASETS.TEST:
-        from objdetect.evaluation.eval import evaluate
-
-        data_loader = build_detection_test_loader(cfg, dataset_name, mapper=mapper)
-        results_i = evaluate(model, data_loader)
-    return {
-        "match_precision": results_i["match_precision"],
-        "match_recall": results_i["match_recall"],
-    }
-
-
->>>>>>> 680b845981a0cdd041a113cb9ec5c0191f914296
 def do_test(cfg, model):
     results = OrderedDict()
     mapper = ProxModelDatasetMapper(cfg, is_train=True)

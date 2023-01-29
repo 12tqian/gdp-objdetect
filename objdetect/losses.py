@@ -372,7 +372,9 @@ class ClassificationBoxProposalProjectionLoss(nn.Module):
             torch.full_like(prop_box_distances, 1e8),
         )
 
-        proposal_gt_distances, closest_gt_boxes = prop_box_distances_masked.min(-1)  # both N x A
+        proposal_gt_distances, closest_gt_boxes = prop_box_distances_masked.min(
+            -1
+        )  # both N x A
 
         # Computing Projection Loss
         pred_boxes = torch.stack([bi["pred_boxes"] for bi in batched_inputs])
@@ -388,7 +390,11 @@ class ClassificationBoxProposalProjectionLoss(nn.Module):
             torch.full_like(pred_box_distances, 1e8),
         )
 
-        projection_loss = torch.gather(pred_box_distances_masked, 2, closest_gt_boxes.unsqueeze(-1)).squeeze(-1) # NxA
+        projection_loss = torch.gather(
+            pred_box_distances_masked, 2, closest_gt_boxes.unsqueeze(-1)
+        ).squeeze(
+            -1
+        )  # NxA
         masks_gathered = torch.gather(gt_masks, 1, closest_gt_boxes)  # N x A
         projection_loss = torch.where(
             masks_gathered, projection_loss, torch.zeros_like(projection_loss)
@@ -436,8 +442,9 @@ class ClassificationBoxProposalProjectionLoss(nn.Module):
         )
         classification_loss = classification_loss * self.classification_lambda
 
-
-        for bi, class_lo, proj_lo in zip(batched_inputs, classification_loss, projection_loss):
+        for bi, class_lo, proj_lo in zip(
+            batched_inputs, classification_loss, projection_loss
+        ):
             assert torch.isfinite(class_lo).all()
             assert torch.isfinite(proj_lo).all()
             loss_dict = bi["loss_dict"]
@@ -448,16 +455,13 @@ class ClassificationBoxProposalProjectionLoss(nn.Module):
             else:
                 loss_dict["classification_loss"] = class_lo
             if "projection_loss" in loss_dict:
-                loss_dict["projection_loss"] = (
-                    loss_dict["projection_loss"] + proj_lo
-                )
+                loss_dict["projection_loss"] = loss_dict["projection_loss"] + proj_lo
             else:
                 loss_dict["projection_loss"] = proj_lo
 
         # breakpoint()
 
         return batched_inputs
-
 
 
 @LOSS_REGISTRY.register()
@@ -574,8 +578,9 @@ class ClassificationBoxProjectionLoss(nn.Module):
         )
         classification_loss = classification_loss * self.classification_lambda
 
-
-        for bi, class_lo, proj_lo in zip(batched_inputs, classification_loss, projection_loss):
+        for bi, class_lo, proj_lo in zip(
+            batched_inputs, classification_loss, projection_loss
+        ):
             assert torch.isfinite(class_lo).all()
             assert torch.isfinite(proj_lo).all()
             loss_dict = bi["loss_dict"]
@@ -586,9 +591,7 @@ class ClassificationBoxProjectionLoss(nn.Module):
             else:
                 loss_dict["classification_loss"] = class_lo
             if "projection_loss" in loss_dict:
-                loss_dict["projection_loss"] = (
-                    loss_dict["projection_loss"] + proj_lo
-                )
+                loss_dict["projection_loss"] = loss_dict["projection_loss"] + proj_lo
             else:
                 loss_dict["projection_loss"] = proj_lo
 
