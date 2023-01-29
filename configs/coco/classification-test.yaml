@@ -1,6 +1,6 @@
 _BASE_: "../base-prox.yaml"
 MODEL:
-  NUM_HORIZON: 1
+  NUM_HORIZON: 3
   DETECTION_LOSS:
     NAME: "ClassificationBoxProjectionLoss"
     CLASSIFICATION_LAMBDA: 0.001
@@ -9,22 +9,19 @@ MODEL:
     NUM_PROPOSALS: 100
   NETWORK:
     POSITION_DIM: 4
-    POSITION_SCALE: 8
     NAME: "ClassResidualNet"
 SOLVER:
   # MAX_ITER: 100
-  IMS_PER_BATCH: 8
+  IMS_PER_BATCH: 12
+  BASE_LR: 0.0001
   WANDB:
     ENABLED: True
-    LOG_FREQUENCY: 1000
-  CLIP_GRADIENTS:
-    ENABLED: True
-    CLIP_TYPE: "full_model"
-    CLIP_VALUE: 1.0
-    NORM_TYPE: 2.0
+    LOG_FREQUENCY: 500
+TEST:
+  EVAL_PERIOD: 5000
 DATASETS:
-  TRAIN: ("coco_2017_train_1small",)
-  TEST:  ("coco_2017_val",)
+  TRAIN: ("coco_2017_train",)
+  TEST: ("coco_2017_val",)
   AUGMENTATION:
-    ENABLED: False
+    ENABLED: True
 OUTPUT_DIR: "./output/classification-test"
