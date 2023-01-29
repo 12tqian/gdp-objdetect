@@ -5,7 +5,7 @@ from .encoders.local_global_encoder import LocalGlobalEncoder
 from .encoders.resnet_pe_flatten import ResnetEncoderPEFlatten
 from .prox_model import ProxModel
 from .proposals import UniformRandomBoxes
-from .losses import BoxDistanceLoss, BoxProjectionLoss, ClassificationBoxProjectionLoss
+from .losses import BoxDistanceLoss, BoxProjectionLoss, ClassificationBoxProjectionLoss, ClassificationBoxProposalProjectionLoss
 from .networks.time_residual_net import TimeResidualNet
 from .networks.residual_net import ResidualNet
 from .networks.class_residual_net import ClassResidualNet
@@ -20,4 +20,5 @@ from .datasets.synthetic_dataset import (
 from .datasets.coco_dataset_small import (
     coco_small_train_function,
     coco_small_val_function,
+    coco_10small_train_function,
 )
