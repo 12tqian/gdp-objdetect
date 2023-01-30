@@ -15,11 +15,11 @@ MODEL:
     POSITION_SCALE: 8
     NAME: "ClassResidualNet"
   ENCODER:
-    NAME: "LocalEncoder"
+    NAME: "LocalGlobalUnitedEncoder"
 SOLVER:
-  IMS_PER_BATCH: 24
+  IMS_PER_BATCH: 9
   WANDB:
-    ENABLED: True
+    ENABLED: False
     LOG_FREQUENCY: 1000
   CLIP_GRADIENTS:
     ENABLED: True
@@ -27,8 +27,8 @@ SOLVER:
     CLIP_VALUE: 1.0
     NORM_TYPE: 2.0
 DATASETS:
-  TRAIN: ("coco_2017_train",)
-  TEST:  ("coco_2017_val",)
+  TRAIN: ("synthetic_train_10",)
+  TEST:  ("synthetic_val_10",)
   AUGMENTATION:
     ENABLED: True
-OUTPUT_DIR: "./output/classification-local-test"
+OUTPUT_DIR: "./output/local-global-united-test"

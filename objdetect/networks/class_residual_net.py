@@ -194,7 +194,7 @@ class ClassResidualNet(nn.Module):
         """
         F = torch.stack([input["encoding"] for input in batched_inputs])
         x = torch.stack([input["proposal_boxes"] for input in batched_inputs])
-
+        x = x.to(F.dtype)
         if F.ndim == 2:
             B = x.shape[1]
             F = F.unsqueeze(1).expand(-1, B, -1)

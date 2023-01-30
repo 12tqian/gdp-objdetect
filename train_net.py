@@ -87,8 +87,8 @@ def get_evaluator(cfg, dataset_name, output_folder=None):
                 dataset_name, evaluator_type
             )
         )
-    evaluator_list = []  # TODO: hack
-    evaluator_list.append(LingxiaoEvaluator())
+    # evaluator_list = []  # TODO: hack
+    # evaluator_list.append(LingxiaoEvaluator())
     if len(evaluator_list) == 1:
         return evaluator_list[0]
     return DatasetEvaluators(evaluator_list)
