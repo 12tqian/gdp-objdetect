@@ -94,12 +94,13 @@ def get_evaluator(cfg, dataset_name, output_folder=None):
     return DatasetEvaluators(evaluator_list)
 
 
-def do_test(cfg, model):
+def do_test(cfg, model, accelerator: Accelerator):
     results = OrderedDict()
     mapper = ProxModelDatasetMapper(cfg, is_train=True)
     model.eval()
     for dataset_name in cfg.DATASETS.TEST:
         data_loader = build_detection_test_loader(cfg, dataset_name, mapper=mapper)
+        # data_loader = accelerator.prepare(data_loader)
         evaluator = get_evaluator(
             cfg, dataset_name, os.path.join(cfg.OUTPUT_DIR, "inference", dataset_name)
         )
@@ -289,7 +290,7 @@ def do_train(
                 )
                 if step % cfg.TEST.EVAL_PERIOD == 0 and accelerator.is_main_process:
                     tqdm.write("Validating model:")
-                    results_i = do_test(cfg, model)
+                    results_i = do_test(cfg, model, accelerator)
                     log_dict.update(results_i)
                     model.train()
 
@@ -340,7 +341,7 @@ def main(args):
         DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
             cfg.MODEL.WEIGHTS, resume=args.resume
         )
-        return do_test(cfg, model)
+        return do_test(cfg, model, accelerator)
 
     objdetect_logger = ObjdetectLogger(cfg, is_main_process=accelerator.is_main_process)
     objdetect_logger.maybe_init_wandb()
@@ -351,7 +352,7 @@ def main(args):
     cfg.freeze()
 
     do_train(cfg, model, accelerator, objdetect_logger, args.resume)
-    return do_test(cfg, model)
+    return do_test(cfg, model, accelerator)
 
 
 if __name__ == "__main__":
