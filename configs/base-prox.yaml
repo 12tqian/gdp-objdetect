@@ -51,6 +51,8 @@ MODEL:
     USE_FOCAL: False
     FOCAL_LOSS_ALPHA: 0.25
     FOCAL_LOSS_GAMMA: 2.0
+    USE_GIOU: False
+    GIOU_LAMBDA: 1.0
   CLASSIFICATION_LOSS:
     NAME: "ClassificationLoss"  
 SEED: 40244023

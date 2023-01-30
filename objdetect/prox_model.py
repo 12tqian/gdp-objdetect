@@ -138,6 +138,7 @@ class ProxModel(nn.Module):
             for key in bi:
                 if isinstance(bi[key], (torch.Tensor, Instances)):
                     bi[key] = bi[key].to(self.device)
+        return batched_inputs
 
     def normalize_boxes(
         self, batched_inputs: List[Dict[str, torch.Tensor | Instances]]
@@ -155,6 +156,7 @@ class ProxModel(nn.Module):
                 )
             if "pred_boxes" in bi:
                 bi["pred_boxes"] = box_xyxy_to_cxcywh(bi["pred_boxes"]) / scale
+        return batched_inputs
 
     def denormalize_boxes(
         self, batched_inputs: List[Dict[str, torch.Tensor | Instances]]
@@ -170,6 +172,12 @@ class ProxModel(nn.Module):
                 )
             if "pred_boxes" in bi:
                 bi["pred_boxes"] = box_cxcywh_to_xyxy(bi["pred_boxes"]) * scale
+        return batched_inputs
+    
+    def clamp_predictions(self, batched_inputs: List[Dict[str, torch.Tensor | Instances]]):
+        for bi in batched_inputs:
+            bi["pred_boxes"] = box_clamp_01(bi["pred_boxes"])
+        return batched_inputs
 
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor | Instances]]):
         """
@@ -201,9 +209,9 @@ class ProxModel(nn.Module):
                 self.train_num_proposals, batched_inputs
             )
 
-        self.move_to_device(batched_inputs)
+        batched_inputs = self.move_to_device(batched_inputs)
 
-        self.normalize_boxes(batched_inputs)
+        batched_inputs = self.normalize_boxes(batched_inputs)
 
         batched_inputs = self.encoder(batched_inputs)
 
@@ -213,11 +221,13 @@ class ProxModel(nn.Module):
 
         results = self.network(batched_inputs)
 
+        batched_inputs = self.clamp_predictions(batched_inputs)
+
         results = self.detection_loss(results)
         results = self.transport_loss(results)
         # results = self.classification_loss(results)
 
-        self.denormalize_boxes(batched_inputs)
+        batched_inputs = self.denormalize_boxes(batched_inputs)
 
         # visualization requires lists, not tensors
 
@@ -233,7 +243,7 @@ class ProxModel(nn.Module):
     def inference(
         self,
         batched_inputs: List[Dict[str, torch.Tensor | Instances]],
-        repetitions=1,
+        repetitions=10,
         do_postprocess: bool = True,
     ):
         """
@@ -252,16 +262,18 @@ class ProxModel(nn.Module):
             batched_inputs = self.inference_proposal_generator(
                 self.inference_num_proposals, batched_inputs
             )
-        self.move_to_device(batched_inputs)
+        batched_inputs = self.move_to_device(batched_inputs)
         # breakpoint()
         for _ in range(repetitions):
-            self.normalize_boxes(batched_inputs)
+            batched_inputs = self.normalize_boxes(batched_inputs)
             # breakpoint()
 
             batched_inputs = self.encoder(batched_inputs)
             batched_inputs = self.network(batched_inputs)
 
-            self.denormalize_boxes(batched_inputs)
+            batched_inputs = self.clamp_predictions(batched_inputs)
+
+            batched_inputs = self.denormalize_boxes(batched_inputs)
 
             for input in batched_inputs:
                 input["proposal_boxes"] = input["pred_boxes"]

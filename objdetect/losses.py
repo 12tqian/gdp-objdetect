@@ -308,12 +308,22 @@ class ClassificationLoss(nn.Module):
 @LOSS_REGISTRY.register()
 class ClassificationBoxProposalProjectionLoss(nn.Module):
     @configurable
-    def __init__(self, classification_lambda: float, use_focal: bool, focal_loss_alpha: float, focal_loss_gamma: float):
+    def __init__(
+        self,
+        classification_lambda: float,
+        use_focal: bool,
+        focal_loss_alpha: float,
+        focal_loss_gamma: float,
+        use_giou: bool,
+        giou_lambda: float
+    ):
         super().__init__()
         self.classification_lambda = classification_lambda
         self.use_focal = use_focal
         self.focal_loss_alpha = focal_loss_alpha
         self.focal_loss_gamma = focal_loss_gamma
+        self.use_giou = use_giou
+        self.giou_lambda = giou_lambda
 
     @classmethod
     def from_config(cls, cfg):
@@ -322,6 +332,8 @@ class ClassificationBoxProposalProjectionLoss(nn.Module):
             "use_focal": cfg.MODEL.DETECTION_LOSS.USE_FOCAL,
             "focal_loss_alpha": cfg.MODEL.DETECTION_LOSS.FOCAL_LOSS_ALPHA,
             "focal_loss_gamma": cfg.MODEL.DETECTION_LOSS.FOCAL_LOSS_GAMMA,
+            "use_giou": cfg.MODEL.DETECTION_LOSS.USE_GIOU,
+            "giou_lambda": cfg.MODEL.DETECTION_LOSS.GIOU_LAMBDA
         }
 
     def box_distances(self, box1, box2):
@@ -361,7 +373,6 @@ class ClassificationBoxProposalProjectionLoss(nn.Module):
             if pred_boxes.shape[0] > 0:
                 gt_padded[i, : pred_boxes.shape[0], :].copy_(pred_boxes)
                 gt_masks[i, : pred_boxes.shape[0]] = True
-
         # pred_boxes is NxAx4
         # gt_padded NxBx4
         # Finding the closest gt to each proposal box
@@ -384,10 +395,12 @@ class ClassificationBoxProposalProjectionLoss(nn.Module):
 
         # Computing Projection Loss
         pred_boxes = torch.stack([bi["pred_boxes"] for bi in batched_inputs])
+        
 
         pred_box_distances = self.box_distances(
             pred_boxes, gt_padded
         )  # N x A x B (A is # pred_boxes, B is max # gt_boxes)
+
         pred_box_distances_masked = torch.where(
             gt_masks.unsqueeze(-2).expand(
                 -1, pred_box_distances.shape[1], -1
@@ -401,6 +414,24 @@ class ClassificationBoxProposalProjectionLoss(nn.Module):
         ).squeeze(
             -1
         )  # NxA
+        from .utils.box_utils import generalized_box_iou
+        if self.use_giou:
+            giou_distances = torch.stack([generalized_box_iou(pb, gt) for pb, gt in zip(pred_boxes, gt_padded)])
+            # giou_distances = generalized_box_iou(pred_boxes, gt_padded)
+            giou_distances_masked = torch.where(
+                gt_masks.unsqueeze(-2).expand(
+                    -1, giou_distances.shape[1], -1
+                ),  # N x B -> N x A x B
+                giou_distances,
+                torch.full_like(giou_distances, 1e8),
+            )
+            giou_loss = torch.gather(
+                giou_distances_masked, 2, closest_gt_boxes.unsqueeze(-1)
+            ).squeeze(
+                -1
+            )  # NxA
+            giou_loss = giou_loss * self.giou_lambda
+
         masks_gathered = torch.gather(gt_masks, 1, closest_gt_boxes)  # N x A
         projection_loss = torch.where(
             masks_gathered, projection_loss, torch.zeros_like(projection_loss)
@@ -432,7 +463,13 @@ class ClassificationBoxProposalProjectionLoss(nn.Module):
 
         if self.use_focal:
             one_hot = F.one_hot(flattened_classes, num_classes=C)
-            classification_loss = sigmoid_focal_loss_jit(flattened_logits, one_hot, alpha=self.focal_loss_alpha, gamma=self.focal_loss_gamma, reduction="none").mean(-1)
+            classification_loss = sigmoid_focal_loss_jit(
+                flattened_logits,
+                one_hot,
+                alpha=self.focal_loss_alpha,
+                gamma=self.focal_loss_gamma,
+                reduction="none",
+            ).mean(-1)
         else:
             classification_loss = F.cross_entropy(
                 flattened_logits, flattened_classes, reduction="none"
@@ -463,14 +500,22 @@ class ClassificationBoxProposalProjectionLoss(nn.Module):
                 loss_dict["classification_loss"] = (
                     loss_dict["classification_loss"] + class_lo
                 )
+
             else:
                 loss_dict["classification_loss"] = class_lo
+
             if "projection_loss" in loss_dict:
                 loss_dict["projection_loss"] = loss_dict["projection_loss"] + proj_lo
             else:
                 loss_dict["projection_loss"] = proj_lo
-
-        # breakpoint()
+        if self.use_giou:
+            for bi, giou_lo in zip(batched_inputs, giou_loss):
+                assert(torch.isfinite(giou_lo).all())
+                if "giou_loss" in loss_dict:
+                    loss_dict["giou_loss"] = loss_dict["giou_loss"] + giou_lo
+                else:
+                    loss_dict["giou_loss"] = giou_lo
+        # breakpoint()  
 
         return batched_inputs
 
@@ -478,7 +523,13 @@ class ClassificationBoxProposalProjectionLoss(nn.Module):
 @LOSS_REGISTRY.register()
 class ClassificationBoxProjectionLoss(nn.Module):
     @configurable
-    def __init__(self, classification_lambda: float, use_focal: bool, focal_loss_alpha: float, focal_loss_gamma: float):
+    def __init__(
+        self,
+        classification_lambda: float,
+        use_focal: bool,
+        focal_loss_alpha: float,
+        focal_loss_gamma: float,
+    ):
         super().__init__()
         self.classification_lambda = classification_lambda
         self.use_focal = use_focal
@@ -493,7 +544,6 @@ class ClassificationBoxProjectionLoss(nn.Module):
             "focal_loss_alpha": cfg.MODEL.DETECTION_LOSS.FOCAL_LOSS_ALPHA,
             "focal_loss_gamma": cfg.MODEL.DETECTION_LOSS.FOCAL_LOSS_GAMMA,
         }
-
 
     def box_distances(self, box1, box2):
         box1 = box1.unsqueeze(-2)  # N x A x 1 x 4
@@ -579,7 +629,13 @@ class ClassificationBoxProjectionLoss(nn.Module):
 
         if self.use_focal:
             one_hot = F.one_hot(flattened_classes, num_classes=C)
-            classification_loss = sigmoid_focal_loss_jit(flattened_logits, one_hot, alpha=self.focal_loss_alpha, gamma=self.focal_loss_gamma, reduction="none").mean(-1)
+            classification_loss = sigmoid_focal_loss_jit(
+                flattened_logits,
+                one_hot,
+                alpha=self.focal_loss_alpha,
+                gamma=self.focal_loss_gamma,
+                reduction="none",
+            ).mean(-1)
         else:
             classification_loss = F.cross_entropy(
                 flattened_logits, flattened_classes, reduction="none"

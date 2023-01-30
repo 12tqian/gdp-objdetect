@@ -2,9 +2,10 @@ _BASE_: "../base-prox.yaml"
 MODEL:
   NUM_HORIZON: 3
   DETECTION_LOSS:
-    NAME: "ClassificationBoxProjectionLoss"
+    NAME: "ClassificationBoxProposalProjectionLoss"
     CLASSIFICATION_LAMBDA: 0.001
     USE_FOCAL: True
+    USE_GIOU: True
   TRAIN_PROPOSAL_GENERATOR:
     NAME: "UniformRandomBoxes"
     NUM_PROPOSALS: 100
@@ -16,7 +17,7 @@ SOLVER:
   IMS_PER_BATCH: 12
   BASE_LR: 0.0001
   WANDB:
-    ENABLED: True
+    ENABLED: False
     LOG_FREQUENCY: 500
 TEST:
   EVAL_PERIOD: 5000
