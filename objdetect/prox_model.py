@@ -1,5 +1,8 @@
 import logging
 from typing import Dict, List, Optional, Tuple
+from .utils.nms import batched_soft_nms
+
+from detectron2.layers import batched_nms
 
 import numpy as np
 import torch
@@ -49,6 +52,7 @@ class ProxModel(nn.Module):
         pixel_std: Tuple[float],
         input_format: Optional[str] = None,
         vis_period: int = 0,
+        use_nms: bool
     ):
         """
         Args:
@@ -69,6 +73,7 @@ class ProxModel(nn.Module):
         self.network = network
         self.transport_loss = transport_loss
         self.detection_loss = detection_loss
+        self.use_nms = use_nms
 
         self.input_format = input_format
         self.vis_period = vis_period
@@ -124,6 +129,7 @@ class ProxModel(nn.Module):
             "vis_period": cfg.VIS_PERIOD,
             "pixel_mean": cfg.MODEL.PIXEL_MEAN,
             "pixel_std": cfg.MODEL.PIXEL_STD,
+            "use_nms": cfg.MODEL.USE_NMS,
         }
 
     @property
@@ -221,7 +227,7 @@ class ProxModel(nn.Module):
 
         results = self.network(batched_inputs)
 
-        batched_inputs = self.clamp_predictions(batched_inputs)
+        # batched_inputs = self.clamp_predictions(batched_inputs)
 
         results = self.detection_loss(results)
         results = self.transport_loss(results)
@@ -271,12 +277,22 @@ class ProxModel(nn.Module):
             batched_inputs = self.encoder(batched_inputs)
             batched_inputs = self.network(batched_inputs)
 
-            batched_inputs = self.clamp_predictions(batched_inputs)
+            # batched_inputs = self.clamp_predictions(batched_inputs)
 
             batched_inputs = self.denormalize_boxes(batched_inputs)
 
             for input in batched_inputs:
                 input["proposal_boxes"] = input["pred_boxes"]
+        if self.use_nms:
+            for bi in batched_inputs:
+                box_pred_per_image = bi["pred_boxes"]
+                scores_per_image =  torch.max(F.softmax(bi["class_logits"], dim=-1), dim=-1)[0]
+                labels_per_image = torch.argmax(
+                    bi["class_logits"], dim=-1
+                ) 
+                keep = batched_nms(box_pred_per_image, scores_per_image, labels_per_image, 0.5)
+                bi["pred_boxes"] = box_pred_per_image[keep]
+                bi["class_logits"] = bi["class_logits"][keep]
 
         if do_postprocess:
             assert (

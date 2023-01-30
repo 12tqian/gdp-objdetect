@@ -5,13 +5,14 @@ MODEL:
     NAME: "ClassificationBoxProposalProjectionLoss"
     CLASSIFICATION_LAMBDA: 0.001
     USE_FOCAL: True
-    USE_GIOU: True
+    USE_GIOU: False
   TRAIN_PROPOSAL_GENERATOR:
     NAME: "UniformRandomBoxes"
     NUM_PROPOSALS: 100
   NETWORK:
     POSITION_DIM: 4
     NAME: "ClassResidualNet"
+  USE_NMS: True
 SOLVER:
   # MAX_ITER: 100
   IMS_PER_BATCH: 12

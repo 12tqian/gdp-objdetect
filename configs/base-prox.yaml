@@ -55,6 +55,7 @@ MODEL:
     GIOU_LAMBDA: 1.0
   CLASSIFICATION_LOSS:
     NAME: "ClassificationLoss"  
+  USE_NMS: False
 SEED: 40244023
 SOLVER:
   IMS_PER_BATCH: 8
