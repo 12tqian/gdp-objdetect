@@ -69,7 +69,6 @@ class ProxModel(nn.Module):
         self.network = network
         self.transport_loss = transport_loss
         self.detection_loss = detection_loss
-        # self.classification_loss = classification_loss
 
         self.input_format = input_format
         self.vis_period = vis_period
@@ -110,7 +109,6 @@ class ProxModel(nn.Module):
 
         transport_loss = LOSS_REGISTRY.get(cfg.MODEL.TRANSPORT_LOSS.NAME)(cfg)
         detection_loss = LOSS_REGISTRY.get(cfg.MODEL.DETECTION_LOSS.NAME)(cfg)
-        # classification_loss = LOSS_REGISTRY.get(cfg.MODEL.CLASSIFICATION_LOSS.NAME)(cfg)
 
         return {
             "train_proposal_generator": train_proposal_generator,
@@ -122,7 +120,6 @@ class ProxModel(nn.Module):
             "network": network,
             "transport_loss": transport_loss,
             "detection_loss": detection_loss,
-            # "classification_loss": classification_loss,
             "input_format": cfg.INPUT.FORMAT,
             "vis_period": cfg.VIS_PERIOD,
             "pixel_mean": cfg.MODEL.PIXEL_MEAN,
@@ -197,8 +194,6 @@ class ProxModel(nn.Module):
                 bi["loss_dict"] = {}
         if not self.training:
             return self.inference(batched_inputs)
-
-        # breakpoint()
 
         if "proposal_boxes" not in batched_inputs[0]:
             assert self.train_proposal_generator is not None
