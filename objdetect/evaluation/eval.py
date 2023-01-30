@@ -14,6 +14,7 @@ import torch
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 from tabulate import tabulate
+from tqdm import tqdm
 
 import detectron2.utils.comm as comm
 from detectron2.config import CfgNode
@@ -110,56 +111,45 @@ def compute_iou(boxes0, boxes1):
     #     print(f"boxes0: {boxes0}\nboxes1: {boxes1}")
     #     print(f"high: {high}\nlow: {low}")
     #     print(f"total: {total_areas}\nintersection: {intersection_areas}")
-        # assert False
+    # assert False
     return (intersection_areas / (total_areas - intersection_areas)).numpy()
 
 
-def evaluate(
-    model,
-    data_loader,
-    eval_itr=-1,
-    iou_threshold=0.5, 
-    cluster_bandwidth=0.02,
-):
-    model.eval()
-    precision_thresholds = torch.linspace(0.001, 0.5, 50)
-    witness_list = []
-    for i in range(10):
-        witness = torch.rand([1024, 4])
-        witness_list.append(witness)
+from .mso_eval import MSOEvaluation, MSOSolution
 
-    samples = []
-    num_tp = 0
-    num_total_pred = 0
-    num_total_gt = 0
-    # pbar = tqdm(enumerate(scenes[:4]))
 
-    from .mso_eval import MSOEvaluation, MSOSolution
+class LingxiaoEvaluator(DatasetEvaluator):
+    def reset(self):
+        self.iou_threshold = 0.5
+        self.cluster_bandwidth = 0.02
+        self.precision_thresholds = torch.linspace(0.001, 0.5, 50)
+        self.num_tp = 0
+        self.num_total_pred = 0
+        self.num_total_gt = 0
+        self.witness_results = []
+        self.witness_list = []
+        for i in range(10):
+            witness = torch.rand([1024, 4])
+            self.witness_list.append(witness)
 
-    witness_results = []
-    for batched_inputs in data_loader:
-        for bi in  batched_inputs:
-            gt_boxes = bi["instances"].gt_boxes.tensor.detach().cpu()
-            batched_inputs = model(batched_inputs)
-            num_total_gt += gt_boxes.shape[0]
-            # breakpoint()
-            pred_boxes = bi["pred_boxes"].detach().cpu().numpy()
-            if pred_boxes.shape[0] == 0:
-                breakpoint()
+    def process(self, inputs, outputs):
+        for input, output in zip(inputs, outputs):
+            gt_boxes = input["instances"].gt_boxes.tensor.detach().cpu()
+            self.num_total_gt += gt_boxes.shape[0]
+            pred_boxes = input["pred_boxes"].detach().cpu().numpy()
             pred_boxes = cluster_solutions(
-                pred_boxes, bandwidth=cluster_bandwidth, include_freq=False
+                pred_boxes, bandwidth=self.cluster_bandwidth, include_freq=False
             )  # Nx4
             pred_boxes = torch.from_numpy(pred_boxes)
             if pred_boxes.shape[0] > g_max_cluster_count:
-                pred_boxes = pred_boxes[:g_max_cluster_count] # hack
-            num_total_pred += pred_boxes.shape[0]
+                pred_boxes = pred_boxes[:g_max_cluster_count]  # hack
+            self.num_total_pred += pred_boxes.shape[0]
             if gt_boxes.shape[0] == 0 or pred_boxes.shape[0] == 0:
                 continue
-
             iou = compute_iou(gt_boxes, pred_boxes)  # KxN
-            cost = (iou > iou_threshold).astype(int)  # KxN
+            cost = (iou > self.iou_threshold).astype(int)  # KxN
             row_ind, col_ind = linear_sum_assignment(cost, maximize=True)
-            num_tp += cost[row_ind, col_ind].sum()
+            self.num_tp += cost[row_ind, col_ind].sum()
 
             # Next compute witnessed metrics.
             gt_F = torch.zeros([1, gt_boxes.shape[0]], dtype=torch.float32)
@@ -172,14 +162,14 @@ def evaluate(
             pred_sol = MSOSolution(pred_boxes.unsqueeze(0), pred_F, pred_S)
 
             cur_results = []
-            for j in range(len(witness_list)):
-                witness = witness_list[j]
+            for j in range(len(self.witness_list)):
+                witness = self.witness_list[j]
                 # Don't use any threshold here.
                 mso_eval = MSOEvaluation(
                     witness=witness.unsqueeze(0),
                     inf_dist=10.0,
                     obj_threshold=1.0,
-                    precision_thresholds=precision_thresholds,
+                    precision_thresholds=self.precision_thresholds,
                     gt_solution=gt_sol,
                     candidate_solution=pred_sol,
                     cuda=True,
@@ -187,45 +177,46 @@ def evaluate(
                 )
                 mso_eval.eval()
                 cur_results.append(mso_eval.avg_results)
-            witness_results.append(cur_results)
-    # Process witness_results, which is 2D. First average over all images.
-    witness_keys = witness_results[0][0].keys()
-    avg_results = [{} for _ in range(len(witness_list))]
-    for j in range(len(witness_list)):
-        avg_result = avg_results[j]
+            self.witness_results.append(cur_results)
+
+    def evaluate(self):
+        witness_keys = self.witness_results[0][0].keys()
+        avg_results = [{} for _ in range(len(self.witness_list))]
+        for j in range(len(self.witness_list)):
+            avg_result = avg_results[j]
+            for key in witness_keys:
+                if key == "precision":
+                    avg_result[key] = torch.stack(
+                        [r[j][key] for r in self.witness_results], -1
+                    ).mean(-1)
+                else:
+                    avg_result[key] = torch.tensor(
+                        [r[j][key] for r in self.witness_results], dtype=torch.float32
+                    ).mean()
+        result_dict = {}
+        # Now average over witnesses and compute mean & std.
         for key in witness_keys:
-            if key == "precision":
-                avg_result[key] = torch.stack(
-                    [r[j][key] for r in witness_results], -1
-                ).mean(-1)
+            stacked = torch.stack([r[key] for r in avg_results], -1)
+            mean_result = stacked.mean(-1)
+            std_result = stacked.std(-1)
+
+            result_dict[key] = {}
+            if mean_result.ndim == 0:
+                result_dict[key]["mean"] = mean_result.item()
+                result_dict[key]["std"] = std_result.item()
             else:
-                avg_result[key] = torch.tensor(
-                    [r[j][key] for r in witness_results], dtype=torch.float32
-                ).mean()
-    result_dict = {}
-    # Now average over witnesses and compute mean & std.
-    for key in witness_keys:
-        stacked = torch.stack([r[key] for r in avg_results], -1)
-        mean_result = stacked.mean(-1)
-        std_result = stacked.std(-1)
+                result_dict[key]["mean"] = mean_result.tolist()
+                result_dict[key]["std"] = std_result.tolist()
+        result_dict["precision_thresholds"] = self.precision_thresholds.tolist()
 
-        result_dict[key] = {}
-        if mean_result.ndim == 0:
-            result_dict[key]["mean"] = mean_result.item()
-            result_dict[key]["std"] = std_result.item()
-        else:
-            result_dict[key]["mean"] = mean_result.tolist()
-            result_dict[key]["std"] = std_result.tolist()
-    result_dict["precision_thresholds"] = precision_thresholds.tolist()
+        result_dict.update(
+            {
+                # "num_tp": int(self.num_tp),
+                # "num_total_pred": self.num_total_pred,
+                # "num_total_gt": self.num_total_gt,
+                "match_precision": self.num_tp / self.num_total_pred,
+                "match_recall": self.num_tp / self.num_total_gt,
+            }
+        )
 
-    result_dict.update(
-        {
-            "num_tp": int(num_tp),
-            "num_total_pred": num_total_pred,
-            "num_total_gt": num_total_gt,
-            "match_precision": num_tp / num_total_pred,
-            "match_recall": num_tp / num_total_gt,
-        }
-    )
-
-    return result_dict
+        return result_dict

@@ -293,8 +293,10 @@ class ProxModel(nn.Module):
             # breakpoint()
             result = Instances(image_size)
             result.pred_boxes = Boxes(bi["pred_boxes"])
-            if "class_logits" in bi: # TODO: 
-                result.scores = torch.max(F.softmax(bi["class_logits"], dim=-1), dim=-1)[
+            if "class_logits" in bi:  # TODO:
+                result.scores = torch.max(
+                    F.softmax(bi["class_logits"], dim=-1), dim=-1
+                )[
                     0
                 ]  # all shape BxC TODO: This seems like what diffusiondet does but make sure
                 result.pred_classes = torch.argmax(

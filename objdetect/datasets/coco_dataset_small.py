@@ -17,6 +17,7 @@ def coco_small_train_function():
         dataset_name=f"coco_2017_train_1000small",
     )
 
+
 def coco_10small_train_function():
     # with open(f'/mnt/tcqian/danielxu/gdp-objdetect/datasets/coco/annotations/instances_train2017_10small.json', 'r') as fp:
     #     dataset = json.load(fp)
@@ -26,6 +27,7 @@ def coco_10small_train_function():
         image_root=f"/mnt/tcqian/danielxu/gdp-objdetect/datasets/coco/train2017",
         dataset_name=f"coco_2017_train_10small",
     )
+
 
 def coco_1small_train_function():
     # with open(f'/mnt/tcqian/danielxu/gdp-objdetect/datasets/coco/annotations/instances_train2017_10small.json', 'r') as fp:
