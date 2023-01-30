@@ -233,7 +233,7 @@ class ProxModel(nn.Module):
     def inference(
         self,
         batched_inputs: List[Dict[str, torch.Tensor | Instances]],
-        repetitions=1,
+        repetitions=10,
         do_postprocess: bool = True,
     ):
         """
