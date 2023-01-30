@@ -1,0 +1,34 @@
+_BASE_: "../base-prox.yaml"
+MODEL:
+  NUM_HORIZON: 1
+  DETECTION_LOSS:
+    NAME: "ClassificationBoxProposalProjectionLoss"
+    CLASSIFICATION_LAMBDA: 0.1
+    USE_FOCAL: True
+  TRANSPORT_LOSS:
+    TRANSPORT_LAMBDA: 1.0
+  TRAIN_PROPOSAL_GENERATOR:
+    NAME: "UniformRandomBoxes"
+    NUM_PROPOSALS: 100
+  NETWORK:
+    POSITION_DIM: 4
+    POSITION_SCALE: 8
+    NAME: "ClassResidualNet"
+  ENCODER:
+    NAME: "LocalEncoder"
+SOLVER:
+  IMS_PER_BATCH: 12
+  WANDB:
+    ENABLED: False
+    LOG_FREQUENCY: 1000
+  CLIP_GRADIENTS:
+    ENABLED: True
+    CLIP_TYPE: "full_model"
+    CLIP_VALUE: 1.0
+    NORM_TYPE: 2.0
+DATASETS:
+  TRAIN: ("coco_2017_train",)
+  TEST:  ("coco_2017_val",)
+  AUGMENTATION:
+    ENABLED: True
+OUTPUT_DIR: "./output/classification-local-test"
