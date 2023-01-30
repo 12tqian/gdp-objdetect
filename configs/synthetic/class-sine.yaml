@@ -1,20 +1,28 @@
 _BASE_: "../base-prox.yaml"
 MODEL:
-  NUM_HORIZON: 5
-  ENCODER:
-    NAME: "ResnetEncoder"
-    POSITIONAL_EMBEDDINGS:
-      TYPE: "sine"
+  NUM_HORIZON: 3
+  DETECTION_LOSS:
+    NAME: "ClassificationBoxProjectionLoss"
+    CLASSIFICATION_LAMBDA: 0.001
+    USE_FOCAL: True
+  TRAIN_PROPOSAL_GENERATOR:
+    NAME: "UniformRandomBoxes"
+    NUM_PROPOSALS: 100
   NETWORK:
+    POSITION_DIM: 4
     NAME: "ClassResidualNet"
 SOLVER:
-  IMS_PER_BATCH: 9
+  # MAX_ITER: 100
+  IMS_PER_BATCH: 12
+  BASE_LR: 0.0001
   WANDB:
     ENABLED: True
-    LOG_FREQUENCY: 20
+    LOG_FREQUENCY: 500
+TEST:
+  EVAL_PERIOD: 5000
 DATASETS:
   TRAIN: ("synthetic_train_10",)
-  TEST:  ("synthetic_val_10",)
+  TEST: ("synthetic_val_10",)
   AUGMENTATION:
-    ENABLED: False
-OUTPUT_DIR: "./output/synthetic-class"
+    ENABLED: True
+OUTPUT_DIR: "./output/classification-test-synthetic"

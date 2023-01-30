@@ -106,11 +106,19 @@ def do_test(cfg, model):
         results_i = inference_on_dataset(model, data_loader, evaluator)
         results[dataset_name] = results_i
         logger.info("Evaluation results for {} in csv format:".format(dataset_name))
-        print_csv_format(results_i)
+        if "match_precision" not in results_i:  # TODO: HACK
+            print_csv_format(results_i)
+        else:
+            print(
+                "match precision, match recall:",
+                results_i["match_precision"],
+                results_i["match_recall"],
+            )
     if len(results) == 1:
         results = list(results.values())[0]
 
-    results = results["bbox"]
+    if "bbox" in results:  # TODO: hack
+        results = results["bbox"]
 
     model.train()
     return results
