@@ -635,10 +635,16 @@ class ClassificationBoxProjectionLoss(nn.Module):
         flattened_classes = target_gt_classes.flatten(0, 1)
 
         if self.use_focal:
-            one_hot = F.one_hot(flattened_classes, num_classes=C)
+            target_classes_onehot = torch.zeros([class_logits.shape[0], class_logits.shape[1], C + 1],
+                                                dtype=class_logits.dtype, layout=class_logits.layout,
+                                                device=class_logits.device)
+            target_classes_onehot.scatter_(2, target_gt_classes.unsqueeze(-1), 1)
+
+            target_classes_onehot = target_classes_onehot[:, :, :-1]
+            target_classes_onehot = target_classes_onehot.flatten(0, 1)
             classification_loss = sigmoid_focal_loss(
                 flattened_logits,
-                one_hot,
+                target_classes_onehot,
                 alpha=self.focal_loss_alpha,
                 gamma=self.focal_loss_gamma,
                 reduction="none",
