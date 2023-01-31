@@ -114,8 +114,8 @@ def do_test(cfg, model, accelerator: Accelerator):
         evaluator = get_evaluator(
             cfg, dataset_name, os.path.join(cfg.OUTPUT_DIR, "inference", dataset_name)
         )
-        # from detectron2.evaluation import inference_on_dataset
-        from objdetect.evaluation.logging_inference import inference_on_dataset
+        from detectron2.evaluation import inference_on_dataset
+        # from objdetect.evaluation.logging_inference import inference_on_dataset
         results_i = inference_on_dataset(model, data_loader, evaluator)
         results[dataset_name] = results_i
         logger.info("Evaluation results for {} in csv format:".format(dataset_name))
@@ -350,14 +350,14 @@ def main(args):
     cfg.SOLVER.ACCELERATOR_STATE = CN()
     update_config_with_dict(cfg.SOLVER.ACCELERATOR_STATE, vars(accelerator.state))
 
+    objdetect_logger = ObjdetectLogger(cfg, is_main_process=accelerator.is_main_process)
+    objdetect_logger.maybe_init_wandb()
+
     if args.eval_only:
         DetectionCheckpointer(model, save_dir=cfg.OUTPUT_DIR).resume_or_load(
             cfg.MODEL.WEIGHTS, resume=args.resume
         )
         return do_test(cfg, model, accelerator)
-
-    objdetect_logger = ObjdetectLogger(cfg, is_main_process=accelerator.is_main_process)
-    objdetect_logger.maybe_init_wandb()
 
     cfg.freeze()
 
