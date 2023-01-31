@@ -167,7 +167,7 @@ def inference_on_dataset(
         The return value of `evaluator.evaluate()`
     """
     num_devices = get_world_size()
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger("detectron2.evaluation.evaluator")
     logger.info("Start inference on {} batches".format(len(data_loader)))
 
     total = len(data_loader)  # inference data loader must have a fixed length
