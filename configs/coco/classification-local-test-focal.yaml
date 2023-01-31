@@ -3,8 +3,8 @@ MODEL:
   NUM_HORIZON: 5
   DETECTION_LOSS:
     NAME: "ClassificationBoxProposalProjectionLoss"
-    CLASSIFICATION_LAMBDA: 0.1
-    # USE_FOCAL: True
+    CLASSIFICATION_LAMBDA: 10.0
+    USE_FOCAL: True
   TRANSPORT_LOSS:
     TRANSPORT_LAMBDA: 1.0
   TRAIN_PROPOSAL_GENERATOR:
@@ -13,12 +13,12 @@ MODEL:
   NETWORK:
     POSITION_DIM: 4
     NAME: "ClassResidualNetV2"
-    HIDDEN_SIZE: 64
+    # HIDDEN_SIZE: 64
   ENCODER:
-    NAME: "LocalGlobalUnitedEncoder"
+    NAME: "LocalEncoder"
 SOLVER:
   BASE_LR: 0.00001
-  IMS_PER_BATCH: 12
+  IMS_PER_BATCH: 24
   WANDB:
     ENABLED: True
     LOG_FREQUENCY: 500
@@ -27,4 +27,4 @@ DATASETS:
   TEST:  ("coco_2017_val",)
   AUGMENTATION:
     ENABLED: True
-OUTPUT_DIR: "./output/classification-local-test-2"
+OUTPUT_DIR: "./output/classification-local-test-focal"

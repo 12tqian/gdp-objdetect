@@ -232,6 +232,8 @@ def inference_on_dataset(
                     name="detectron2.evaluation.evaluator"
                 )
             start_data_time = time.perf_counter()
+            if idx == 10:
+                break
 
     # Measure the time only for this worker (before the synchronization barrier)
     total_time = time.perf_counter() - start_time
@@ -252,10 +254,11 @@ def inference_on_dataset(
     )
     
     choices = evaluator._predictions
-    log_num = 5
+    log_num = 1
     inds = random.sample(range(len(choices)), log_num)
     log_dict = {}
     num_boxes = []
+    model.eval()
     for idx, values in enumerate(zip(data_loader, choices)):
         if idx not in inds:
             continue
@@ -268,6 +271,7 @@ def inference_on_dataset(
             z[1][id]["class_labels"] = class_id_to_label
         img = wandb.Image(z[0], boxes=z[1])
         image_file_name = "/".join(batch[0]["file_name"].split("/")[-3:])
+        breakpoint()
         num_boxes.append(batch[0]["pred_boxes"].shape[0])
         log_dict[image_file_name] = img
     print(f"num_boxes {num_boxes}")
