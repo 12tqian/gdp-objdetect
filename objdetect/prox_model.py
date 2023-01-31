@@ -300,7 +300,7 @@ class ProxModel(nn.Module):
                 )
                 bi["pred_boxes"] = box_pred_per_image[keep]
                 bi["class_logits"] = bi["class_logits"][keep]
-
+                                        
         if do_postprocess:
             assert (
                 not torch.jit.is_scripting()
