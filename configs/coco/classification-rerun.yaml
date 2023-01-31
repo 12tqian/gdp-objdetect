@@ -7,12 +7,13 @@ MODEL:
   TRAIN_PROPOSAL_GENERATOR:
     NAME: "UniformRandomBoxes"
     NUM_PROPOSALS: 100
+  ENCODER:
+    NAME: "LocalGlobalUnitedEncoder"
   NETWORK:
     POSITION_DIM: 4
     NAME: "ClassResidualNet"
   USE_NMS: True
 SOLVER:
-  # MAX_ITER: 100
   IMS_PER_BATCH: 12
   BASE_LR: 0.00001
   WANDB:
@@ -25,4 +26,4 @@ DATASETS:
   TEST: ("coco_2017_val",)
   AUGMENTATION:
     ENABLED: True
-OUTPUT_DIR: "./output/classification-test"
+OUTPUT_DIR: "./output/classification-rerun"

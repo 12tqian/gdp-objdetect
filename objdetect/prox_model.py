@@ -269,10 +269,9 @@ class ProxModel(nn.Module):
                 self.inference_num_proposals, batched_inputs
             )
         batched_inputs = self.move_to_device(batched_inputs)
-        # breakpoint()
+
         for _ in range(repetitions):
             batched_inputs = self.normalize_boxes(batched_inputs)
-            # breakpoint()
 
             batched_inputs = self.encoder(batched_inputs)
             batched_inputs = self.network(batched_inputs)
@@ -313,7 +312,7 @@ class ProxModel(nn.Module):
             image_size = bi["image"].shape[-2:]
             height = bi.get("height", image_size[0])
             width = bi.get("width", image_size[1])
-            # breakpoint()
+
             result = Instances(image_size)
             result.pred_boxes = Boxes(bi["pred_boxes"])
             if "class_logits" in bi:  # TODO:
