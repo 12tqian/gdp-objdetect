@@ -229,6 +229,7 @@ def inference_on_dataset(
                         f"ETA={eta}"
                     ),
                     n=5,
+                    name="detectron2.evaluation.evaluator"
                 )
             start_data_time = time.perf_counter()
 
