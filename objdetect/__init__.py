@@ -16,6 +16,7 @@ from .losses import (
 from .networks.time_residual_net import TimeResidualNet
 from .networks.residual_net import ResidualNet
 from .networks.class_residual_net import ClassResidualNet
+from .networks.class_residual_net_v2 import ClassResidualNetV2
 from .datasets.synthetic_dataset import (
     synthetic_train_function,
     synthetic_val_function,

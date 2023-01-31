@@ -208,6 +208,7 @@ class ProxModel(nn.Module):
         if "loss_dict" not in batched_inputs[0]:
             for bi in batched_inputs:
                 bi["loss_dict"] = {}
+        
         if not self.training:
             return self.inference(batched_inputs)
 
@@ -233,18 +234,17 @@ class ProxModel(nn.Module):
 
         results = self.detection_loss(results)
         results = self.transport_loss(results)
-        # results = self.classification_loss(results)
 
-        batched_inputs = self.denormalize_boxes(batched_inputs)
+        results = self.denormalize_boxes(results)
 
         # visualization requires lists, not tensors
 
         if self.vis_period > 0:
             storage = get_event_storage()
             if storage.iter % self.vis_period == 0:
-                proposal_boxes = [x["proposal_boxes"] for x in batched_inputs]
+                proposal_boxes = [x["proposal_boxes"] for x in results]
 
-                self.visualize_training(batched_inputs, proposal_boxes)
+                self.visualize_training(results, proposal_boxes)
 
         return results
 

@@ -1,0 +1,30 @@
+_BASE_: "../base-prox.yaml"
+MODEL:
+  NUM_HORIZON: 3
+  DETECTION_LOSS:
+    NAME: "ClassificationBoxProjectionLoss"
+    CLASSIFICATION_LAMBDA: 0.1
+  TRAIN_PROPOSAL_GENERATOR:
+    NAME: "UniformRandomBoxes"
+    NUM_PROPOSALS: 100
+  ENCODER:
+    NAME: "LocalGlobalUnitedEncoder"
+  NETWORK:
+    NAME: "ClassResidualNetV2"
+    POSITION_DIM: 4
+    HIDDEN_SIZE: 64
+  USE_NMS: True
+SOLVER:
+  IMS_PER_BATCH: 12
+  BASE_LR: 0.00001
+  WANDB:
+    ENABLED: True
+    LOG_FREQUENCY: 500
+TEST:
+  EVAL_PERIOD: 10000
+DATASETS:
+  TRAIN: ("coco_2017_train",)
+  TEST: ("coco_2017_val",)
+  AUGMENTATION:
+    ENABLED: True
+OUTPUT_DIR: "./output/classification-new"

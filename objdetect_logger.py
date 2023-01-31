@@ -197,8 +197,8 @@ class ObjdetectLogger:
             if self.log_images():
                 image_file_name = "/".join(self.image_name.split("/")[-3:])
                 if class_labels is not None:
-                    for i, image in enumerate(self.logged_images):
-                        (img, boxes) = image
+                    for i, image_box in enumerate(self.logged_images):
+                        (img, boxes) = image_box
                         for z in boxes:
                             boxes[z]["class_labels"] = class_labels
                         self.logged_images[i] = wandb.Image(img, boxes=boxes)
