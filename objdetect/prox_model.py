@@ -52,7 +52,7 @@ class ProxModel(nn.Module):
         pixel_std: Tuple[float],
         input_format: Optional[str] = None,
         vis_period: int = 0,
-        use_nms: bool
+        use_nms: bool,
     ):
         """
         Args:
@@ -179,8 +179,10 @@ class ProxModel(nn.Module):
             if "pred_boxes" in bi:
                 bi["pred_boxes"] = box_cxcywh_to_xyxy(bi["pred_boxes"]) * scale
         return batched_inputs
-    
-    def clamp_predictions(self, batched_inputs: List[Dict[str, torch.Tensor | Instances]]):
+
+    def clamp_predictions(
+        self, batched_inputs: List[Dict[str, torch.Tensor | Instances]]
+    ):
         for bi in batched_inputs:
             bi["pred_boxes"] = box_clamp_01(bi["pred_boxes"])
         return batched_inputs
@@ -286,11 +288,16 @@ class ProxModel(nn.Module):
         if self.use_nms:
             for bi in batched_inputs:
                 box_pred_per_image = bi["pred_boxes"]
-                scores_per_image =  torch.max(F.softmax(bi["class_logits"], dim=-1), dim=-1)[0]
-                labels_per_image = torch.argmax(
-                    bi["class_logits"], dim=-1
-                ) 
-                keep = batched_nms(box_cxcywh_to_xyxy(box_pred_per_image), scores_per_image, labels_per_image, 0.5)
+                scores_per_image = torch.max(
+                    F.softmax(bi["class_logits"], dim=-1), dim=-1
+                )[0]
+                labels_per_image = torch.argmax(bi["class_logits"], dim=-1)
+                keep = batched_nms(
+                    box_cxcywh_to_xyxy(box_pred_per_image),
+                    scores_per_image,
+                    labels_per_image,
+                    0.5,
+                )
                 bi["pred_boxes"] = box_pred_per_image[keep]
                 bi["class_logits"] = bi["class_logits"][keep]
 

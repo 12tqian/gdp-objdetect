@@ -315,7 +315,7 @@ class ClassificationBoxProposalProjectionLoss(nn.Module):
         focal_loss_alpha: float,
         focal_loss_gamma: float,
         use_giou: bool,
-        giou_lambda: float
+        giou_lambda: float,
     ):
         super().__init__()
         self.classification_lambda = classification_lambda
@@ -333,7 +333,7 @@ class ClassificationBoxProposalProjectionLoss(nn.Module):
             "focal_loss_alpha": cfg.MODEL.DETECTION_LOSS.FOCAL_LOSS_ALPHA,
             "focal_loss_gamma": cfg.MODEL.DETECTION_LOSS.FOCAL_LOSS_GAMMA,
             "use_giou": cfg.MODEL.DETECTION_LOSS.USE_GIOU,
-            "giou_lambda": cfg.MODEL.DETECTION_LOSS.GIOU_LAMBDA
+            "giou_lambda": cfg.MODEL.DETECTION_LOSS.GIOU_LAMBDA,
         }
 
     def box_distances(self, box1, box2):
@@ -395,7 +395,6 @@ class ClassificationBoxProposalProjectionLoss(nn.Module):
 
         # Computing Projection Loss
         pred_boxes = torch.stack([bi["pred_boxes"] for bi in batched_inputs])
-        
 
         pred_box_distances = self.box_distances(
             pred_boxes, gt_padded
@@ -415,8 +414,11 @@ class ClassificationBoxProposalProjectionLoss(nn.Module):
             -1
         )  # NxA
         from .utils.box_utils import generalized_box_iou
+
         if self.use_giou:
-            giou_distances = torch.stack([generalized_box_iou(pb, gt) for pb, gt in zip(pred_boxes, gt_padded)])
+            giou_distances = torch.stack(
+                [generalized_box_iou(pb, gt) for pb, gt in zip(pred_boxes, gt_padded)]
+            )
             # giou_distances = generalized_box_iou(pred_boxes, gt_padded)
             giou_distances_masked = torch.where(
                 gt_masks.unsqueeze(-2).expand(
@@ -510,12 +512,12 @@ class ClassificationBoxProposalProjectionLoss(nn.Module):
                 loss_dict["projection_loss"] = proj_lo
         if self.use_giou:
             for bi, giou_lo in zip(batched_inputs, giou_loss):
-                assert(torch.isfinite(giou_lo).all())
+                assert torch.isfinite(giou_lo).all()
                 if "giou_loss" in loss_dict:
                     loss_dict["giou_loss"] = loss_dict["giou_loss"] + giou_lo
                 else:
                     loss_dict["giou_loss"] = giou_lo
-        # breakpoint()  
+        # breakpoint()
 
         return batched_inputs
 
