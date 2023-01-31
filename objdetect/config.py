@@ -26,7 +26,12 @@ def load_yaml_with_base(filename: str):
                 ), "Cannot inherit key '{}' from base!".format(k)
                 merge_a_into_b(v, b[k])
             else:
-                b[k] = v
+                if k not in b:
+                    raise ValueError(
+                        f"{k} is not in the base file, please initialize with default values in the base file. Tried assigning {v}."
+                    )
+                else:
+                    b[k] = v
 
     def _load_with_base(base_cfg_file: str) -> Dict[str, Any]:
         if base_cfg_file.startswith("~"):

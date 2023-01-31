@@ -1,15 +1,17 @@
 from detectron2.config import CfgNode as CN
-from objdetect_logger import ObjdetectLogger
+from objdetect_logger import ObjdetectLogger, get_logged_batched_input_wandb
 import logging
+import numpy as np
 import itertools
 from typing import List, Dict, Set, Any
 from collections import OrderedDict
 from contextlib import nullcontext
-
+import time
 import os
 import detectron2.utils.comm as comm
 import torch
 import wandb
+from torch import nn
 from accelerate import Accelerator
 from accelerate.utils import set_seed
 from detectron2.checkpoint import DetectionCheckpointer, PeriodicCheckpointer
@@ -19,6 +21,8 @@ from detectron2.data import (
     build_detection_test_loader,
     build_detection_train_loader,
 )
+from detectron2.utils.comm import get_world_size, is_main_process
+
 from detectron2.engine import default_argument_parser, default_setup
 from detectron2.modeling import (
     META_ARCH_REGISTRY,
@@ -35,7 +39,6 @@ from detectron2.evaluation import (
     LVISEvaluator,
     PascalVOCDetectionEvaluator,
     SemSegEvaluator,
-    inference_on_dataset,
     print_csv_format,
 )
 from detectron2.solver import build_lr_scheduler
@@ -43,11 +46,18 @@ from detectron2.solver.build import maybe_add_gradient_clipping
 from torch.profiler import ProfilerActivity, profile, record_function
 from tqdm import tqdm
 from objdetect import ProxModelDatasetMapper, add_proxmodel_cfg
-from datetime import datetime
+import datetime
 from objdetect.config import update_config_with_dict
 from objdetect.evaluation.eval import LingxiaoEvaluator
+from typing import Dict, List, Optional, Tuple, Union
 
 logger = logging.getLogger("detectron2")
+from detectron2.evaluation import DatasetEvaluator, inference_context
+from collections import OrderedDict, abc
+from contextlib import ExitStack, contextmanager
+import random
+from detectron2.utils.logger import log_every_n_seconds
+
 
 
 def get_evaluator(cfg, dataset_name, output_folder=None):
@@ -104,6 +114,8 @@ def do_test(cfg, model, accelerator: Accelerator):
         evaluator = get_evaluator(
             cfg, dataset_name, os.path.join(cfg.OUTPUT_DIR, "inference", dataset_name)
         )
+        # from detectron2.evaluation import inference_on_dataset
+        from objdetect.evaluation.logging_inference import inference_on_dataset
         results_i = inference_on_dataset(model, data_loader, evaluator)
         results[dataset_name] = results_i
         logger.info("Evaluation results for {} in csv format:".format(dataset_name))

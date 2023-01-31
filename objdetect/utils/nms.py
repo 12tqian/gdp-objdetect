@@ -1,9 +1,15 @@
 import torch
 
-from detectron2.structures import Boxes, RotatedBoxes, pairwise_iou, pairwise_iou_rotated
+from detectron2.structures import (
+    Boxes,
+    RotatedBoxes,
+    pairwise_iou,
+    pairwise_iou_rotated,
+)
 
 """ Soft-NMS Pull request from: https://github.com/facebookresearch/detectron2/pull/1183/files
 """
+
 
 def soft_nms(boxes, scores, method, gaussian_sigma, linear_threshold, prune_threshold):
     """
@@ -30,8 +36,7 @@ def soft_nms(boxes, scores, method, gaussian_sigma, linear_threshold, prune_thre
         tuple(Tensor, Tensor):
             [0]: int64 tensor with the indices of the elements that have been kept
             by Soft NMS, sorted in decreasing order of scores
-            [1]: float tensor with the re-scored scores of the elements that were kept
-"""
+            [1]: float tensor with the re-scored scores of the elements that were kept"""
     return _soft_nms(
         Boxes,
         pairwise_iou,
@@ -44,7 +49,9 @@ def soft_nms(boxes, scores, method, gaussian_sigma, linear_threshold, prune_thre
     )
 
 
-def soft_nms_rotated(boxes, scores, method, gaussian_sigma, linear_threshold, prune_threshold):
+def soft_nms_rotated(
+    boxes, scores, method, gaussian_sigma, linear_threshold, prune_threshold
+):
     """
     Performs soft non-maximum suppression algorithm on rotated boxes
     Args:
@@ -69,7 +76,7 @@ def soft_nms_rotated(boxes, scores, method, gaussian_sigma, linear_threshold, pr
         tuple(Tensor, Tensor):
             [0]: int64 tensor with the indices of the elements that have been kept
             by Soft NMS, sorted in decreasing order of scores
-            [1]: float tensor with the re-scored scores of the elements that were kept    """
+            [1]: float tensor with the re-scored scores of the elements that were kept"""
     return _soft_nms(
         RotatedBoxes,
         pairwise_iou_rotated,
@@ -248,7 +255,9 @@ def _soft_nms(
         elif method == "hard":  # standard NMS
             decay = (ious < linear_threshold).float()
         else:
-            raise NotImplementedError("{} soft nms method not implemented.".format(method))
+            raise NotImplementedError(
+                "{} soft nms method not implemented.".format(method)
+            )
 
         scores *= decay
         keep = scores > prune_threshold
@@ -258,4 +267,6 @@ def _soft_nms(
         scores = scores[keep]
         idxs = idxs[keep]
 
-    return torch.tensor(idxs_out).to(boxes.device), torch.tensor(scores_out).to(scores.device)
+    return torch.tensor(idxs_out).to(boxes.device), torch.tensor(scores_out).to(
+        scores.device
+    )
