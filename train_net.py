@@ -115,8 +115,8 @@ def do_test(cfg, model, accelerator: Accelerator):
         evaluator = get_evaluator(
             cfg, dataset_name, os.path.join(cfg.OUTPUT_DIR, "inference", dataset_name)
         )
-        # from detectron2.evaluation import inference_on_dataset
-        from objdetect.evaluation.logging_inference import inference_on_dataset
+        from detectron2.evaluation import inference_on_dataset
+        # from objdetect.evaluation.logging_inference import inference_on_dataset
         results_i = inference_on_dataset(model, data_loader, evaluator)
         results[dataset_name] = results_i
         logger.info("Evaluation results for {} in csv format:".format(dataset_name))
@@ -302,11 +302,11 @@ def do_train(
                         "lr": optimizer.param_groups[0]["lr"],
                     }
                 )
-                if step % cfg.TEST.EVAL_PERIOD == 0 and accelerator.is_main_process:
-                    tqdm.write("Validating model:")
-                    results_i = do_test(cfg, model, accelerator)
-                    log_dict.update(results_i)
-                    model.train()
+                # if step % cfg.TEST.EVAL_PERIOD == 0 and accelerator.is_main_process:
+                #     tqdm.write("Validating model:")
+                #     results_i = do_test(cfg, model, accelerator)
+                #     log_dict.update(results_i)
+                #     model.train()
 
                 objdetect_logger.end_iteration(
                     batched_inputs,
