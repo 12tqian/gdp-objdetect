@@ -284,6 +284,7 @@ class ProxModel(nn.Module):
 
             for input in batched_inputs:
                 input["proposal_boxes"] = input["pred_boxes"]
+        
         if self.use_nms:
             for bi in batched_inputs:
                 box_pred_per_image = bi["pred_boxes"]

@@ -113,7 +113,7 @@ class ProxModelDatasetMapper:
         # TODO: add lingxiao augmentations later
         if not self.is_train:
             # USER: Modify this if you want to keep them for some reason.
-            dataset_dict.pop("annotations", None)
+            # dataset_dict.pop("annotations", None)
             return dataset_dict
 
         if "annotations" in dataset_dict:

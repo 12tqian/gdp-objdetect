@@ -261,7 +261,7 @@ def inference_on_dataset(
             continue
         input, output = values
         go = random.sample(range(len(input)), 1)[0]
-        batch = [input[go]] 
+        batch = [input[go]]
         model(batch)
         z = get_logged_batched_input_wandb(batch[0])
         for id in z[1]:
