@@ -292,7 +292,7 @@ class ProxModel(nn.Module):
                 )[0]
                 labels_per_image = torch.argmax(bi["class_logits"], dim=-1)
                 keep = batched_nms(
-                    box_cxcywh_to_xyxy(box_pred_per_image),
+                    box_pred_per_image,
                     scores_per_image,
                     labels_per_image,
                     0.5,
