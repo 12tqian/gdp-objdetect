@@ -302,7 +302,7 @@ def do_train(
                         "lr": optimizer.param_groups[0]["lr"],
                     }
                 )
-                if step % cfg.TEST.EVAL_PERIOD == 0 and step != 0 and accelerator.is_main_process:
+                if step % cfg.TEST.EVAL_PERIOD == 0 and accelerator.is_main_process:
                     tqdm.write("Validating model:")
                     results_i = do_test(cfg, model, accelerator)
                     log_dict.update(results_i)
