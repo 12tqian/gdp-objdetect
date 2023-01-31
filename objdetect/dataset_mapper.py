@@ -76,7 +76,7 @@ class ProxModelDatasetMapper:
 
         self.img_format = cfg.INPUT.FORMAT
         self.is_train = is_train
-        if not cfg.DATASETS.AUGMENTATION.ENABLED:
+        if not cfg.DATASETS.AUGMENTATION.ENABLED or not self.is_train:
             self.crop_gen = []
             self.tfm_gens = []
 
@@ -131,3 +131,4 @@ class ProxModelDatasetMapper:
             instances = utils.annotations_to_instances(annos, image_shape)
             dataset_dict["instances"] = utils.filter_empty_instances(instances)
         return dataset_dict
+
