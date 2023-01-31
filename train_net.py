@@ -106,17 +106,17 @@ def get_evaluator(cfg, dataset_name, output_folder=None):
 
 def do_test(cfg, model, accelerator: Accelerator):
     results = OrderedDict()
-    mapper = ProxModelDatasetMapper(cfg, is_train=True)
+    mapper = ProxModelDatasetMapper(cfg, is_train=False)
     model.eval()
     for dataset_name in cfg.DATASETS.TEST:
-        # data_loader = build_detection_test_loader(cfg, dataset_name, mapper=mapper)
         data_loader = build_detection_test_loader(cfg, dataset_name)
+        # data_loader = build_detection_test_loader(cfg, dataset_name, mapper=mapper)
         # data_loader = accelerator.prepare(data_loader)
         evaluator = get_evaluator(
             cfg, dataset_name, os.path.join(cfg.OUTPUT_DIR, "inference", dataset_name)
         )
-        from detectron2.evaluation import inference_on_dataset
-        # from objdetect.evaluation.logging_inference import inference_on_dataset
+        # from detectron2.evaluation import inference_on_dataset
+        from objdetect.evaluation.logging_inference import inference_on_dataset
         results_i = inference_on_dataset(model, data_loader, evaluator)
         results[dataset_name] = results_i
         logger.info("Evaluation results for {} in csv format:".format(dataset_name))

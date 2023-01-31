@@ -114,6 +114,13 @@ class ProxModelDatasetMapper:
         if not self.is_train:
             # USER: Modify this if you want to keep them for some reason.
             # dataset_dict.pop("annotations", None)
+            annos = [
+                utils.transform_instance_annotations(obj, transforms, image_shape)
+                for obj in dataset_dict.pop("annotations")
+                if obj.get("iscrowd", 0) == 0
+            ]
+            instances = utils.annotations_to_instances(annos, image_shape)
+            dataset_dict["instances"] = utils.filter_empty_instances(instances)
             return dataset_dict
 
         if "annotations" in dataset_dict:

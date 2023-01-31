@@ -322,7 +322,7 @@ class ProxModel(nn.Module):
             width = bi.get("width", image_size[1])
 
             result = Instances(image_size)
-            result.pred_boxes = Boxes(bi["pred_boxes"])
+            result.pred_boxes = Boxes(bi["pred_boxes"].detach().clone())
             if "class_logits" in bi:  # TODO:
                 result.scores = torch.max(
                     F.softmax(bi["class_logits"], dim=-1), dim=-1

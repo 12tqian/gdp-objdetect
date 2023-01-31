@@ -123,8 +123,9 @@ def convert_box_tensor_wandb(
 
 def get_logged_batched_input_wandb(bi: dict[str, torch.Tensor]):
     boxes_input = {}
-    if "proposal_boxes" in bi:
-        boxes_input["proposal_boxes"] = convert_box_tensor_wandb(bi["proposal_boxes"])
+    # don't log proposals, they just clutter image
+    # if "proposal_boxes" in bi:
+    #     boxes_input["proposal_boxes"] = convert_box_tensor_wandb(bi["proposal_boxes"])
 
     if "pred_boxes" in bi:
         boxes_input["pred_boxes"] = convert_box_tensor_wandb(
