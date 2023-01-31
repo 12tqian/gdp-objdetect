@@ -167,7 +167,7 @@ def inference_on_dataset(
         The return value of `evaluator.evaluate()`
     """
     num_devices = get_world_size()
-    logger = logging.getLogger(__name__)
+    logger = logging.getLogger("detectron2.evaluation.evaluator")
     logger.info("Start inference on {} batches".format(len(data_loader)))
 
     total = len(data_loader)  # inference data loader must have a fixed length
@@ -229,6 +229,7 @@ def inference_on_dataset(
                         f"ETA={eta}"
                     ),
                     n=5,
+                    name="detectron2.evaluation.evaluator"
                 )
             start_data_time = time.perf_counter()
 
@@ -262,7 +263,6 @@ def inference_on_dataset(
         go = random.sample(range(len(input)), 1)[0]
         batch = [input[go]] 
         model(batch)
-        breakpoint()
         z = get_logged_batched_input_wandb(batch[0])
         for id in z[1]:
             z[1][id]["class_labels"] = class_id_to_label
