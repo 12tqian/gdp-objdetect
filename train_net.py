@@ -260,6 +260,7 @@ def do_train(
         for batched_inputs, step in tqdm(
             it_item,
             disable=not accelerator.is_main_process,
+            initial=start_iter,
             total=cfg.SOLVER.MAX_ITER,
         ):
             objdetect_logger.begin_iteration(batched_inputs)
@@ -357,9 +358,6 @@ def main(args):
 
     objdetect_logger = ObjdetectLogger(cfg, is_main_process=accelerator.is_main_process)
     objdetect_logger.maybe_init_wandb()
-
-    if wandb.run is not None:
-        cfg.OUTPUT_DIR = os.path.join(cfg.OUTPUT_DIR, wandb.run.name)
 
     cfg.freeze()
 
