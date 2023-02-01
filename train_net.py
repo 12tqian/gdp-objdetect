@@ -264,7 +264,7 @@ def do_train(
             initial=start_iter,
             total=cfg.SOLVER.MAX_ITER,
         ):
-            objdetect_logger.begin_iteration(batched_inputs)
+            # objdetect_logger.begin_iteration(batched_inputs)
 
             with accelerator.accumulate(model):
                 loss_dict = {}
@@ -272,7 +272,7 @@ def do_train(
 
                     batched_inputs = model(batched_inputs)
 
-                    objdetect_logger.during_iteration(batched_inputs)
+                    # objdetect_logger.during_iteration(batched_inputs)
 
                     for bi in batched_inputs:
                         for k, v in bi["loss_dict"].items():
@@ -308,10 +308,10 @@ def do_train(
                     log_dict.update(results_i)
                     model.train()
 
-                objdetect_logger.end_iteration(
-                    batched_inputs,
-                    log_dict,
-                )
+                # objdetect_logger.end_iteration(
+                #     batched_inputs,
+                #     log_dict,
+                # )
 
                 accelerator.backward(total_loss)
                 optimizer.step()

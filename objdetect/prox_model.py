@@ -315,6 +315,18 @@ class ProxModel(nn.Module):
         Rescale the output instances to the target size.
         """
         # note: private function; subject to changes
+        log_prob = 1.0
+        if torch.rand((1,)).item() < log_prob:
+            from objdetect_logger import get_logged_batched_input_wandb
+            import wandb
+            log_dict = {}
+            for bi in batched_inputs:
+                img, boxes = get_logged_batched_input_wandb(bi)
+                print("num boxes:", bi["pred_boxes"].shape[0])
+                image_file_name = "/".join(bi["file_name"].split("/")[-3:])
+                log_dict[image_file_name] = wandb.Image(img, boxes=boxes)
+            wandb.log(log_dict)
+
         processed_results = []
         for bi in batched_inputs:
             image_size = bi["image"].shape[-2:]
