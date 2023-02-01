@@ -23,7 +23,7 @@ MODEL:
     USE_TIME: False
   INFERENCE_PROPOSAL_GENERATOR:
     NAME: "UniformRandomBoxes"
-    NUM_PROPOSALS: 100
+    NUM_PROPOSALS: 1024
   ENCODER:
     NAME: "LocalGlobalEncoder"
     DIMENSION: 256
