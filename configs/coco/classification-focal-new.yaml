@@ -1,14 +1,19 @@
 _BASE_: "../base-prox.yaml"
 MODEL:
-  NUM_HORIZON: 5
+  NUM_HORIZON: 3
   DETECTION_LOSS:
     NAME: "ClassificationBoxProposalProjectionLoss"
-    CLASSIFICATION_LAMBDA: 10.0
+    CLASSIFICATION_LAMBDA: 80.0
     USE_FOCAL: True
   TRANSPORT_LOSS:
     TRANSPORT_LAMBDA: 1.0
+  # TRAIN_PROPOSAL_GENERATOR:
+  #   NAME: "UniformRandomBoxes"
+  #   NUM_PROPOSALS: 100
   TRAIN_PROPOSAL_GENERATOR:
-    NAME: "UniformRandomBoxes"
+    NAME: "NoisedGroundTruth"
+    GAUSSIAN_ERROR: 0.0001
+    USE_TIME: True
     NUM_PROPOSALS: 100
   NETWORK:
     POSITION_DIM: 4
