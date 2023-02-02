@@ -300,6 +300,30 @@ class ProxModel(nn.Module):
                 )
                 bi["pred_boxes"] = box_pred_per_image[keep]
                 bi["class_logits"] = bi["class_logits"][keep]
+        
+        # begin bad logging
+        log_prob = 1.0
+        import random
+        import wandb
+        if random.random() < log_prob:
+            from objdetect_logger import get_logged_batched_input_wandb
+            log_dict = {}
+            for bi in batched_inputs:
+                # breakpoint()
+                img, boxes = get_logged_batched_input_wandb(bi)
+                image_file_name = "/".join(bi["file_name"].split("/")[-3:])
+                to_log = wandb.Image(img, boxes=boxes)
+                log_dict["inference/" + image_file_name] = to_log
+                if "class_logits" in bi:
+                    class_logits = bi["class_logits"]
+                    class_probs = F.softmax(class_logits, dim=-1)
+                    class_probs = class_probs.cpu().numpy()
+                    class_probs = class_probs.tolist()
+                    class_probs = [list(x) for x in class_probs]
+                    class_probs = [x for x in class_probs if max(x) > 0.5]
+                    if len(class_probs) > 0:
+                        print("class_probs", class_probs)
+            wandb.log(log_dict)
                                         
         if do_postprocess:
             assert (
