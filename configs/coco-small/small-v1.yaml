@@ -3,10 +3,14 @@ MODEL:
   NUM_HORIZON: 3
   DETECTION_LOSS:
     NAME: "ClassificationBoxProposalProjectionLoss"
-    CLASSIFICATION_LAMBDA: 1.0
+    CLASSIFICATION_LAMBDA: 0.3
   TRAIN_PROPOSAL_GENERATOR:
-    NAME: "UniformRandomBoxes"
+    NAME: "NoisedGroundTruth"
+    GAUSSIAN_ERROR: 0.0001
+    USE_TIME: True
     NUM_PROPOSALS: 100
+  TRANSPORT_LOSS:
+    TRANSPORT_LAMBDA: 2.0
   ENCODER:
     NAME: "LocalGlobalUnitedEncoder"
   NETWORK:
@@ -16,15 +20,17 @@ MODEL:
   USE_NMS: True
 SOLVER:
   IMS_PER_BATCH: 12
-  BASE_LR: 0.00001
+  BASE_LR: 0.0001
   WANDB:
     ENABLED: True
-    LOG_FREQUENCY: 500
+    LOG_FREQUENCY: 250
 TEST:
-  EVAL_PERIOD: 10000
+  EVAL_PERIOD: 1000
 DATASETS:
-  TRAIN: ("coco_2017_train",)
-  TEST: ("coco_2017_val",)
+  TRAIN: ("coco_2017_val_small",)
+  TEST: ("coco_2017_val_small",)
   AUGMENTATION:
-    ENABLED: True
-OUTPUT_DIR: "./output/classification-v4"
+    ENABLED: False
+OUTPUT_DIR: "./output/small-v1"
+DATALOADER:
+  NUM_WORKERS: 4

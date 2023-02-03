@@ -59,6 +59,8 @@ class ProxModelDatasetMapper:
     """
 
     def __init__(self, cfg, is_train=True):
+        is_train = is_train and cfg.DATASETS.AUGMENTATION.ENABLED
+
         if cfg.INPUT.CROP.ENABLED and is_train:
             self.crop_gen = [
                 T.ResizeShortestEdge([400, 500, 600], sample_style="choice"),
@@ -76,9 +78,6 @@ class ProxModelDatasetMapper:
 
         self.img_format = cfg.INPUT.FORMAT
         self.is_train = is_train
-        if not cfg.DATASETS.AUGMENTATION.ENABLED or not self.is_train:
-            self.crop_gen = []
-            self.tfm_gens = []
 
     def __call__(self, dataset_dict):
         """
@@ -111,17 +110,11 @@ class ProxModelDatasetMapper:
             np.ascontiguousarray(image.transpose(2, 0, 1))
         )
         # TODO: add lingxiao augmentations later
-        if not self.is_train:
-            # USER: Modify this if you want to keep them for some reason.
-            # dataset_dict.pop("annotations", None)
-            annos = [
-                utils.transform_instance_annotations(obj, transforms, image_shape)
-                for obj in dataset_dict.pop("annotations")
-                if obj.get("iscrowd", 0) == 0
-            ]
-            instances = utils.annotations_to_instances(annos, image_shape)
-            dataset_dict["instances"] = utils.filter_empty_instances(instances)
-            return dataset_dict
+
+        # if not self.is_train:
+        # USER: Modify this if you want to keep them for some reason.
+        # dataset_dict.pop("annotations", None)
+        # return dataset_dict
 
         if "annotations" in dataset_dict:
             # USER: Modify this if you want to keep them for some reason.
@@ -138,4 +131,3 @@ class ProxModelDatasetMapper:
             instances = utils.annotations_to_instances(annos, image_shape)
             dataset_dict["instances"] = utils.filter_empty_instances(instances)
         return dataset_dict
-
