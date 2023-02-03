@@ -302,7 +302,7 @@ class ProxModel(nn.Module):
                 bi["class_logits"] = bi["class_logits"][keep]
         
         # begin bad logging
-        log_prob = 1.0
+        log_prob = 10 / 5000
         import random
         import wandb
         if random.random() < log_prob:
@@ -314,15 +314,6 @@ class ProxModel(nn.Module):
                 image_file_name = "/".join(bi["file_name"].split("/")[-3:])
                 to_log = wandb.Image(img, boxes=boxes)
                 log_dict["inference/" + image_file_name] = to_log
-                if "class_logits" in bi:
-                    class_logits = bi["class_logits"]
-                    class_probs = F.softmax(class_logits, dim=-1)
-                    class_probs = class_probs.cpu().numpy()
-                    class_probs = class_probs.tolist()
-                    class_probs = [list(x) for x in class_probs]
-                    class_probs = [x for x in class_probs if max(x) > 0.5]
-                    if len(class_probs) > 0:
-                        print("class_probs", class_probs)
             wandb.log(log_dict)
                                         
         if do_postprocess:
