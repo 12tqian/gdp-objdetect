@@ -278,10 +278,13 @@ class ProxModel(nn.Module):
             batched_inputs = self.encoder(batched_inputs)
             batched_inputs = self.network(batched_inputs)
 
+
             # batched_inputs = self.clamp_predictions(batched_inputs)
 
             batched_inputs = self.denormalize_boxes(batched_inputs)
 
+            # if _ == 0:
+                # self.detection_loss(batched_inputs)
             for input in batched_inputs:
                 input["proposal_boxes"] = input["pred_boxes"]
         

@@ -1,4 +1,5 @@
 from .registry import LOSS_REGISTRY
+import numpy as np
 from typing import List, Dict
 import torch
 from detectron2.config import configurable
@@ -391,6 +392,13 @@ class ClassificationBoxProposalProjectionLoss(nn.Module):
         proposal_gt_distances, closest_gt_boxes = prop_box_distances_masked.min(
             -1
         )  # both N x A
+        # if "inference" in batched_inputs[0]:
+        #     for i in range(N):
+        #         closest_gt_counts = np.bincount(closest_gt_boxes[i].cpu().numpy()) 
+        #         closest_gt_counts.sort()
+        #         closest_gt_counts = closest_gt_counts / closest_gt_counts.sum()
+        #         print(batched_inputs[i]["file_name"].split("/")[-1], closest_gt_counts.std(), closest_gt_counts, "Out of: ", batched_inputs[i]["instances"].gt_boxes.tensor.shape[0])
+                # print(closest_gt_counts.min(), closest_gt_counts.std(), "Out of: ", batched_inputs[i]["instances"].gt_boxes.tensor.shape[0])
 
         # Computing Projection Loss
         pred_boxes = torch.stack([bi["pred_boxes"] for bi in batched_inputs])
