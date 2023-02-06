@@ -8,8 +8,9 @@ MODEL:
     # GIOU_LAMBDA: 2.0
     PROJECTION_LAMBDA: 1.0
     # USE_GIOU: True
+    IOU_THRESHOLD: 0.5
     USE_FOCAL: True
-  CLAMP_PREDS: True
+  CLAMP_PREDS: False
   TRANSPORT_LOSS:
     TRANSPORT_LAMBDA: 1.0
   TRAIN_PROPOSAL_GENERATOR:
@@ -25,16 +26,16 @@ MODEL:
     NAME: "LocalGlobalUnitedEncoder"
 SOLVER:
   BACKBONE_MULTIPLIER: 0.1
-  BASE_LR: 0.000025
+  BASE_LR: 0.00025
   IMS_PER_BATCH: 12 # 16
   WANDB:
-    ENABLED: False # True
+    ENABLED: True
     LOG_FREQUENCY: 500
   STEPS: (3000000, 3200000)
   MAX_ITER: 3600000
-DATASETS:
-  TRAIN: ("coco_2017_val_small",)
-  TEST:  ("coco_2017_val_small",)
+DATASETS: # switch thes
+  TRAIN: ("coco_2017_train_1small",)
+  TEST:  ("coco_2017_train_1small",)
   AUGMENTATION:
-    ENABLED: True
-OUTPUT_DIR: "./output/better-noise"
+    ENABLED: False # True
+OUTPUT_DIR: "./output/better-noise-overfit"

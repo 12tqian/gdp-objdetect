@@ -86,6 +86,7 @@ class_id_to_label = {
     77: "teddy bear",
     78: "hair drier",
     79: "toothbrush",
+    80: "background"
     -1: "none",
 }
 
