@@ -272,7 +272,6 @@ def do_train(
             with accelerator.accumulate(model):
                 loss_dict = {}
                 for h in range(cfg.MODEL.NUM_HORIZON):
-
                     batched_inputs = model(batched_inputs)
 
                     objdetect_logger.during_iteration(batched_inputs)

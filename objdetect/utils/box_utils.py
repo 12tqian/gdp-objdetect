@@ -22,7 +22,7 @@ def box_clamp_01(x):
 def degenerate_mask(boxes, needs_format=False):
     if needs_format:
         boxes = box_cxcywh_to_xyxy(boxes)
-    return (boxes[:, 2:] >= boxes[:, :2]).all(-1)
+    return (boxes[:, 2:] <= boxes[:, :2]).all(-1)
 
 
 def box_iou(boxes1, boxes2, needs_format=False):

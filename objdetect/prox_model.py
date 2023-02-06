@@ -321,7 +321,6 @@ class ProxModel(nn.Module):
 
             log_dict = {}
             for bi in batched_inputs:
-                # breakpoint()
                 img, boxes = get_logged_batched_input_wandb(bi)
                 image_file_name = "/".join(bi["file_name"].split("/")[-3:])
                 to_log = wandb.Image(img, boxes=boxes)
