@@ -18,24 +18,11 @@ def box_clamp_01(x):
     x = torch.clamp(x, min=0, max=1)
     return x
 
+def degenerate_mask(boxes):
+    return boxes[:, 2:] >= boxes[:, :2]
+
 
 def box_iou(boxes1, boxes2):
-    area1 = box_area(boxes1)
-    area2 = box_area(boxes2)
-
-    lt = torch.max(boxes1[:, None, :2], boxes2[:, :2])  # [N,M,2]
-    rb = torch.min(boxes1[:, None, 2:], boxes2[:, 2:])  # [N,M,2]
-
-    wh = (rb - lt).clamp(min=0)  # [N,M,2]
-    inter = wh[:, :, 0] * wh[:, :, 1]  # [N,M]
-
-    union = area1[:, None] + area2 - inter
-
-    iou = inter / union
-    return iou, union
-
-
-def box_iou_one_dimensional(boxes1, boxes2):
     area1 = box_area(boxes1)
     area2 = box_area(boxes2)
 
@@ -56,9 +43,7 @@ def positive_negative(
 ):  # boxes1 is the ground truth, boxes2 is the prediction, Nx4 both
     boxes1 = box_cxcywh_to_xyxy(boxes1)
     boxes2 = box_cxcywh_to_xyxy(boxes2)
-    mask = (boxes1[:, 2:] >= boxes1[:, :2]) or (
-        boxes2[:, 2:] >= boxes2[:, :2]
-    )  # check if the boxes are degenerate
+    mask = degenerate_mask(boxes1) or degenerate_mask(boxes2)
     iou, union = box_iou(boxes1[mask], boxes2[mask])
     N = boxes1.shape[0]
     ret = torch.zeros(N, dtype=torch.bool)

@@ -55,6 +55,7 @@ MODEL:
     USE_GIOU: False
     GIOU_LAMBDA: 1.0
     PROJECTION_LAMBDA: 1.0
+    IOU_THRESHOLD: 0.5
   CLASSIFICATION_LOSS:
     NAME: "ClassificationLoss"  
   USE_NMS: True

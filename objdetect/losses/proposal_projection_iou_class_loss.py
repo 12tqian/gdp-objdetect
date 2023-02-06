@@ -23,6 +23,8 @@ class ProposalProjectionIoUClass(nn.Module):
         use_giou: bool,
         giou_lambda: float,
         projection_lambda: float,
+        null_class: bool,
+        iou_threshold: float,
     ):
         super().__init__()
         self.classification_lambda = classification_lambda
@@ -32,6 +34,9 @@ class ProposalProjectionIoUClass(nn.Module):
         self.use_giou = use_giou
         self.giou_lambda = giou_lambda
         self.projection_lambda = projection_lambda
+        self.null_class = null_class
+        self.iou_threshold = iou_threshold
+        assert self.null_class 
 
     @classmethod
     def from_config(cls, cfg):
@@ -43,6 +48,8 @@ class ProposalProjectionIoUClass(nn.Module):
             "use_giou": cfg.MODEL.DETECTION_LOSS.USE_GIOU,
             "giou_lambda": cfg.MODEL.DETECTION_LOSS.GIOU_LAMBDA,
             "projection_lambda": cfg.MODEL.DETECTION_LOSS.PROJECTION_LAMBDA,
+            "null_class": cfg.MODEL.NULL_CLASS,
+            "iou_threshold": cfg.MODEL.DETECTION_LOSS.IOU_THRESHOLD,
         }
 
     def box_distances(self, box1, box2):
@@ -85,8 +92,16 @@ class ProposalProjectionIoUClass(nn.Module):
         # pred_boxes is NxAx4
         # gt_padded NxBx4
         # Finding the closest gt to each proposal box
+        pred_boxes = torch.stack([bi["pred_boxes"] for bi in batched_inputs])
         prop_boxes = torch.stack([bi["proposal_boxes"] for bi in batched_inputs])
+        class_logits = torch.stack(
+            [bi["class_logits"] for bi in batched_inputs]
+        )  # NxAxC
+        N, A, C = class_logits.shape
+        C -= 1 # remove background class, assert that use_null is true
 
+
+        
         prop_box_distances = self.box_distances(
             prop_boxes, gt_padded
         )  # N x A x B (A is # pred_boxes, B is max # gt_boxes)
@@ -101,16 +116,7 @@ class ProposalProjectionIoUClass(nn.Module):
         proposal_gt_distances, closest_gt_boxes = prop_box_distances_masked.min(
             -1
         )  # both N x A
-        # if "inference" in batched_inputs[0]:
-        #     for i in range(N):
-        #         closest_gt_counts = np.bincount(closest_gt_boxes[i].cpu().numpy())
-        #         closest_gt_counts.sort()
-        #         closest_gt_counts = closest_gt_counts / closest_gt_counts.sum()
-        #         print(batched_inputs[i]["file_name"].split("/")[-1], closest_gt_counts.std(), closest_gt_counts, "Out of: ", batched_inputs[i]["instances"].gt_boxes.tensor.shape[0])
-        #         print(closest_gt_counts.min(), closest_gt_counts.std(), "Out of: ", batched_inputs[i]["instances"].gt_boxes.tensor.shape[0])
-
-        # Computing Projection Loss
-        pred_boxes = torch.stack([bi["pred_boxes"] for bi in batched_inputs])
+        
 
         pred_box_distances = self.box_distances(
             pred_boxes, gt_padded
@@ -156,29 +162,23 @@ class ProposalProjectionIoUClass(nn.Module):
         )  # N x A
         projection_loss = projection_loss * self.projection_lambda
 
-        target_gt_classes = []
-        gt_is_not_empty_mask = []
-        for i, bi in enumerate(batched_inputs):
-            if bi["instances"].gt_classes.shape[0] > 0:
-                target_gt_classes.append(
-                    bi["instances"].gt_classes[closest_gt_boxes[i]]
-                )
-                if self.null_class:
+        from ..utils.box_utils import box_iou, degenerate_mask
 
-                    target_gt_classes
-                gt_is_not_empty_mask.append(1)
-            else:
-                target_gt_classes.append(
-                    torch.full_like(closest_gt_boxes[i], 0)
-                )  # TODO: Oof, needa handle the case where there are no gt_classes
-                gt_is_not_empty_mask.append(0)
+
+        pred_degenerate_mask = degenerate_mask(pred_boxes.view(-1, 4)).view(N, A, -1)
+
+        pred_box_distances, _ = box_iou(pred_boxes, gt_padded).max(-1)
+        target_gt_classes = []
+        for i in range(N):
+            iou, _ = box_iou(pred_boxes[i], gt_padded[i]) # A x B
+            best_class = iou.argmax(-1) # A
+            best_class[iou[best_class] < self.iou_threshold] = C + 1
+            best_class[pred_degenerate_mask[i]] = C + 1
+            target_gt_classes.append(best_class)
+
+        gt_is_not_empty_mask = [1 if bi["instances"].gt_classes.shape[0] > 0 else 0 for bi in batched_inputs]
 
         target_gt_classes = torch.stack(target_gt_classes)  # NxA
-
-        class_logits = torch.stack(
-            [bi["class_logits"] for bi in batched_inputs]
-        )  # NxAxC
-        N, A, C = class_logits.shape
 
         flattened_logits = class_logits.flatten(0, 1)
         flattened_classes = target_gt_classes.flatten(0, 1)
@@ -191,8 +191,6 @@ class ProposalProjectionIoUClass(nn.Module):
                 device=class_logits.device,
             )
             target_classes_onehot.scatter_(2, target_gt_classes.unsqueeze(-1), 1)
-
-            target_classes_onehot = target_classes_onehot[:, :, :-1]
             target_classes_onehot = target_classes_onehot.flatten(0, 1)
             classification_loss = sigmoid_focal_loss(
                 flattened_logits,
