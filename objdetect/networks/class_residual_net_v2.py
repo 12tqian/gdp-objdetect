@@ -190,7 +190,7 @@ class ClassResidualNetV2(nn.Module):
             "feature_proj_dim": cfg.MODEL.NETWORK.FEATURE_PROJ_DIM,
             "input_proj_dim": cfg.MODEL.NETWORK.INPUT_PROJ_DIM,
             "num_classes": cfg.DATASETS.NUM_CLASSES,
-            "null_class": cfg.DATASETS.NULL_CLASS,
+            "null_class": cfg.MODEL.NULL_CLASS,
         }
 
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):

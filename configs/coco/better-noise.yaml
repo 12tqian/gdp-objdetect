@@ -3,11 +3,11 @@ MODEL:
   NULL_CLASS: True
   NUM_HORIZON: 3
   DETECTION_LOSS:
-    NAME: "ClassificationBoxProposalProjectionLoss"
-    CLASSIFICATION_LAMBDA: 2.0
-    GIOU_LAMBDA: 2.0
-    PROJECTION_LAMBDA: 5.0
-    USE_GIOU: True
+    NAME: "ProposalProjectionIoUClassLoss"
+    CLASSIFICATION_LAMBDA: 10.0
+    # GIOU_LAMBDA: 2.0
+    PROJECTION_LAMBDA: 1.0
+    # USE_GIOU: True
     USE_FOCAL: True
   CLAMP_PREDS: True
   TRANSPORT_LOSS:
@@ -26,15 +26,15 @@ MODEL:
 SOLVER:
   BACKBONE_MULTIPLIER: 0.1
   BASE_LR: 0.000025
-  IMS_PER_BATCH: 16
+  IMS_PER_BATCH: 12 # 16
   WANDB:
-    ENABLED: True
+    ENABLED: False # True
     LOG_FREQUENCY: 500
   STEPS: (3000000, 3200000)
   MAX_ITER: 3600000
 DATASETS:
-  TRAIN: ("coco_2017_train",)
-  TEST:  ("coco_2017_val",)
+  TRAIN: ("coco_2017_val_small",)
+  TEST:  ("coco_2017_val_small",)
   AUGMENTATION:
     ENABLED: True
 OUTPUT_DIR: "./output/better-noise"

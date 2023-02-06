@@ -161,15 +161,14 @@ class ProposalProjectionIoUClassLoss(nn.Module):
 
         from ..utils.box_utils import box_iou, degenerate_mask
 
-        pred_degenerate_mask = degenerate_mask(pred_boxes.view(-1, 4)).view(N, A, -1)
+        pred_degenerate_mask = degenerate_mask(pred_boxes.view(-1, 4), True).view(N, A)
 
-        pred_box_distances, _ = box_iou(pred_boxes, gt_padded).max(-1)
         target_gt_classes = []
         for i in range(N):
-            iou, _ = box_iou(pred_boxes[i], gt_padded[i])  # A x B
+            iou, _ = box_iou(pred_boxes[i], gt_padded[i], True)  # A x B
             best_class = iou.argmax(-1)  # A
-            best_class[iou[best_class] < self.iou_threshold] = C + 1
-            best_class[pred_degenerate_mask[i]] = C + 1
+            best_class[torch.gather(iou, 1, best_class.unsqueeze(1)).squeeze() < self.iou_threshold] = C 
+            best_class[pred_degenerate_mask[i]] = C 
             target_gt_classes.append(best_class)
 
         gt_is_not_empty_mask = [
