@@ -130,6 +130,4 @@ class ClassificationLoss(nn.Module):
             else:
                 loss_dict["classification_loss"] = lo
 
-        # breakpoint()
-
         return batched_inputs

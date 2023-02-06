@@ -243,6 +243,5 @@ class ClassificationBoxProposalProjectionLoss(nn.Module):
                     loss_dict["giou_loss"] = loss_dict["giou_loss"] + giou_lo
                 else:
                     loss_dict["giou_loss"] = giou_lo
-        # breakpoint()
 
         return batched_inputs

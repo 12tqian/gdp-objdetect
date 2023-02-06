@@ -12,7 +12,7 @@ from torchvision.ops.focal_loss import sigmoid_focal_loss
 
 
 @LOSS_REGISTRY.register()
-class ProposalProjectionIoUClass(nn.Module):
+class ProposalProjectionIoUClassLoss(nn.Module):
     @configurable
     def __init__(
         self,
@@ -242,6 +242,5 @@ class ProposalProjectionIoUClass(nn.Module):
                     loss_dict["giou_loss"] = loss_dict["giou_loss"] + giou_lo
                 else:
                     loss_dict["giou_loss"] = giou_lo
-        # breakpoint()
 
         return batched_inputs

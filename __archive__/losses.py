@@ -300,8 +300,6 @@ class ClassificationLoss(nn.Module):
             else:
                 loss_dict["classification_loss"] = lo
 
-        # breakpoint()
-
         return batched_inputs
 
 
@@ -543,8 +541,6 @@ class ClassificationBoxProposalProjectionLoss(nn.Module):
                     loss_dict["giou_loss"] = loss_dict["giou_loss"] + giou_lo
                 else:
                     loss_dict["giou_loss"] = giou_lo
-        # breakpoint()
-
         return batched_inputs
 
 
@@ -709,8 +705,6 @@ class ClassificationBoxProjectionLoss(nn.Module):
                 loss_dict["projection_loss"] = loss_dict["projection_loss"] + proj_lo
             else:
                 loss_dict["projection_loss"] = proj_lo
-
-        # breakpoint()
 
         return batched_inputs
 
@@ -953,6 +947,4 @@ class ClassificationProposalProjectionIoUClass(nn.Module):
                     loss_dict["giou_loss"] = loss_dict["giou_loss"] + giou_lo
                 else:
                     loss_dict["giou_loss"] = giou_lo
-        # breakpoint()
-
         return batched_inputs

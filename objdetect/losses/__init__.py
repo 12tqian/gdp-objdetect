@@ -6,3 +6,4 @@ from .classification_box_proposal_projection_loss import (
     ClassificationBoxProposalProjectionLoss,
 )
 from classification_loss import ClassificationLoss
+from .proposal_projection_iou_class_loss import ProposalProjectionIoUClassLoss

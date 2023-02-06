@@ -173,6 +173,4 @@ class ClassificationBoxProjectionLoss(nn.Module):
             else:
                 loss_dict["projection_loss"] = proj_lo
 
-        # breakpoint()
-
         return batched_inputs
