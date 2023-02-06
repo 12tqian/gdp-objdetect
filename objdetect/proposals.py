@@ -51,6 +51,7 @@ class UniformRandomBoxes(nn.Module):
             bi["proposal_boxes"] = proposal_boxes * scale
         return batched_inputs
 
+
 @PROPOSAL_REGISTRY.register()
 class InferenceProposalBoxes(nn.Module):
     @configurable
@@ -177,25 +178,21 @@ class NoisedGroundTruth(nn.Module):
             # print("50th proposal_box", prior[50])
         return batched_inputs
 
-    
 
 @PROPOSAL_REGISTRY.register()
-class MixtureNoisedUniform(nn.Module):
+class PerturbedGroundTruth(nn.Module):
     @configurable
-    def __init__(self, *, gaussian_error: float, use_t: bool, is_inf_proposal: bool, ratio: float):
+    def __init__(self, *, gaussian_error: float, use_t: bool, is_inf_proposal: bool):
         super().__init__()
         self.gaussian_error = gaussian_error  # default should be 0.1??
         self.use_t = use_t
-        self.ratio = ratio
 
     @classmethod
     def from_config(cls, cfg, is_inf_proposal: bool):
         return {
             # "num_proposal_boxes": cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.NUM_PROPOSALS, # TODO: Hardcoding this to be for train because only using GT for train
             "gaussian_error": cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.GAUSSIAN_ERROR,  # TODO: Maybe make these function args and put the if train/inference logic in the same place as calculating num_proposal_boxes
-            "use_t": cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.USE_TIME,
             "is_inf_proposal": is_inf_proposal,
-            "ratio": cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.RATIO,
         }
 
     def forward(
@@ -259,7 +256,3 @@ class MixtureNoisedUniform(nn.Module):
             # print("second proposal_box", prior[1])
             # print("50th proposal_box", prior[50])
         return batched_inputs
-
-
-
-

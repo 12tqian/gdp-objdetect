@@ -53,6 +53,7 @@ class ProxModel(nn.Module):
         input_format: Optional[str] = None,
         vis_period: int = 0,
         use_nms: bool,
+        clamp_preds: bool,
     ):
         """
         Args:
@@ -74,6 +75,7 @@ class ProxModel(nn.Module):
         self.transport_loss = transport_loss
         self.detection_loss = detection_loss
         self.use_nms = use_nms
+        self.clamp_preds = clamp_preds
 
         self.input_format = input_format
         self.vis_period = vis_period
@@ -130,6 +132,7 @@ class ProxModel(nn.Module):
             "pixel_mean": cfg.MODEL.PIXEL_MEAN,
             "pixel_std": cfg.MODEL.PIXEL_STD,
             "use_nms": cfg.MODEL.USE_NMS,
+            "clamp_preds": cfg.MODEL.CLAMP_PREDS,
         }
 
     @property
@@ -208,7 +211,7 @@ class ProxModel(nn.Module):
         if "loss_dict" not in batched_inputs[0]:
             for bi in batched_inputs:
                 bi["loss_dict"] = {}
-        
+
         if not self.training:
             return self.inference(batched_inputs)
 
@@ -229,6 +232,9 @@ class ProxModel(nn.Module):
             bi["proposal_boxes"] = bi["proposal_boxes"].to(bi["encoding"].dtype)
 
         results = self.network(batched_inputs)
+
+        if self.clamp_preds:
+            batched_inputs = self.clamp_predictions(batched_inputs)
 
         # batched_inputs = self.clamp_predictions(batched_inputs)
 
@@ -278,16 +284,17 @@ class ProxModel(nn.Module):
             batched_inputs = self.encoder(batched_inputs)
             batched_inputs = self.network(batched_inputs)
 
-
-            # batched_inputs = self.clamp_predictions(batched_inputs)
+            if self.clamp_preds:
+                batched_inputs = self.clamp_predictions(batched_inputs)
 
             batched_inputs = self.denormalize_boxes(batched_inputs)
 
             # if _ == 0:
-                # self.detection_loss(batched_inputs)
+            #     batched_inputs[0]["inference"] = 0
+            #     self.detection_loss(batched_inputs)
             for input in batched_inputs:
                 input["proposal_boxes"] = input["pred_boxes"]
-        
+
         if self.use_nms:
             for bi in batched_inputs:
                 box_pred_per_image = bi["pred_boxes"]
@@ -303,13 +310,15 @@ class ProxModel(nn.Module):
                 )
                 bi["pred_boxes"] = box_pred_per_image[keep]
                 bi["class_logits"] = bi["class_logits"][keep]
-        
+
         # begin bad logging
         log_prob = 10 / 5000
         import random
         import wandb
+
         if random.random() < log_prob:
             from objdetect_logger import get_logged_batched_input_wandb
+
             log_dict = {}
             for bi in batched_inputs:
                 # breakpoint()
@@ -318,7 +327,7 @@ class ProxModel(nn.Module):
                 to_log = wandb.Image(img, boxes=boxes)
                 log_dict["inference/" + image_file_name] = to_log
             wandb.log(log_dict)
-                                        
+
         if do_postprocess:
             assert (
                 not torch.jit.is_scripting()

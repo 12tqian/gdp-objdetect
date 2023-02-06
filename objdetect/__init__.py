@@ -12,6 +12,8 @@ from .losses import (
     BoxProjectionLoss,
     ClassificationBoxProjectionLoss,
     ClassificationBoxProposalProjectionLoss,
+    ClassificationLoss,
+    BoxProjectionOriginLoss,
 )
 from .networks.time_residual_net import TimeResidualNet
 from .networks.residual_net import ResidualNet

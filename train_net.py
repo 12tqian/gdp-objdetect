@@ -108,8 +108,10 @@ def do_test(cfg, model, accelerator: Accelerator):
     mapper = ProxModelDatasetMapper(cfg, is_train=False)
     model.eval()
     for dataset_name in cfg.DATASETS.TEST:
-        # data_loader = build_detection_test_loader(cfg, dataset_name, mapper=mapper) # TODO: "horizon"
-        data_loader = build_detection_test_loader(cfg, dataset_name)
+        data_loader = build_detection_test_loader(
+            cfg, dataset_name, mapper=mapper
+        )  # TODO: "horizon"
+        # data_loader = build_detection_test_loader(cfg, dataset_name)
 
         # data_loader = accelerator.prepare(data_loader)
         evaluator = get_evaluator(

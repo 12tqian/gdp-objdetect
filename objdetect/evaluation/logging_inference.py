@@ -139,6 +139,7 @@ class_id_to_label = {
     77: "teddy bear",
     78: "hair drier",
     79: "toothbrush",
+    80: "background",
     -1: "none",
 }
 
@@ -229,7 +230,7 @@ def inference_on_dataset(
                         f"ETA={eta}"
                     ),
                     n=5,
-                    name="detectron2.evaluation.evaluator"
+                    name="detectron2.evaluation.evaluator",
                 )
             start_data_time = time.perf_counter()
             if idx == 10:
@@ -252,7 +253,7 @@ def inference_on_dataset(
             num_devices,
         )
     )
-    
+
     choices = evaluator._predictions
     log_num = 1
     inds = random.sample(range(len(choices)), log_num)
@@ -264,7 +265,7 @@ def inference_on_dataset(
             continue
         input, output = values
         go = random.sample(range(len(input)), 1)[0]
-        batch = [input[go]] 
+        batch = [input[go]]
         model(batch)
         z = get_logged_batched_input_wandb(batch[0])
         for id in z[1]:

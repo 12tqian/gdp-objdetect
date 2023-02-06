@@ -114,7 +114,9 @@ class ClassResidualNetV2(nn.Module):
         feature_proj_dim=None,
         use_difference=True,
         include_scaling=True,
+        null_class: bool = False,
     ):
+        self.null_class = null_class
         super().__init__()
         self.input_dim = input_dim
         self.feature_dim = feature_dim
@@ -173,7 +175,9 @@ class ClassResidualNetV2(nn.Module):
                 )
             )
 
-        self.class_projection = nn.Linear(self.hidden_size, num_classes)
+        self.class_projection = nn.Linear(
+            self.hidden_size, num_classes if not null_class else num_classes + 1
+        )
         self.box_projection = nn.Linear(self.hidden_size, 4)
 
     @classmethod
@@ -186,6 +190,7 @@ class ClassResidualNetV2(nn.Module):
             "feature_proj_dim": cfg.MODEL.NETWORK.FEATURE_PROJ_DIM,
             "input_proj_dim": cfg.MODEL.NETWORK.INPUT_PROJ_DIM,
             "num_classes": cfg.DATASETS.NUM_CLASSES,
+            "null_class": cfg.DATASETS.NULL_CLASS,
         }
 
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor]]):
