@@ -18,6 +18,7 @@ def box_clamp_01(x):
     x = torch.clamp(x, min=0, max=1)
     return x
 
+
 def degenerate_mask(boxes):
     return boxes[:, 2:] >= boxes[:, :2]
 

@@ -36,7 +36,7 @@ class ProposalProjectionIoUClass(nn.Module):
         self.projection_lambda = projection_lambda
         self.null_class = null_class
         self.iou_threshold = iou_threshold
-        assert self.null_class 
+        assert self.null_class
 
     @classmethod
     def from_config(cls, cfg):
@@ -98,10 +98,8 @@ class ProposalProjectionIoUClass(nn.Module):
             [bi["class_logits"] for bi in batched_inputs]
         )  # NxAxC
         N, A, C = class_logits.shape
-        C -= 1 # remove background class, assert that use_null is true
+        C -= 1  # remove background class, assert that use_null is true
 
-
-        
         prop_box_distances = self.box_distances(
             prop_boxes, gt_padded
         )  # N x A x B (A is # pred_boxes, B is max # gt_boxes)
@@ -116,7 +114,6 @@ class ProposalProjectionIoUClass(nn.Module):
         proposal_gt_distances, closest_gt_boxes = prop_box_distances_masked.min(
             -1
         )  # both N x A
-        
 
         pred_box_distances = self.box_distances(
             pred_boxes, gt_padded
@@ -164,19 +161,20 @@ class ProposalProjectionIoUClass(nn.Module):
 
         from ..utils.box_utils import box_iou, degenerate_mask
 
-
         pred_degenerate_mask = degenerate_mask(pred_boxes.view(-1, 4)).view(N, A, -1)
 
         pred_box_distances, _ = box_iou(pred_boxes, gt_padded).max(-1)
         target_gt_classes = []
         for i in range(N):
-            iou, _ = box_iou(pred_boxes[i], gt_padded[i]) # A x B
-            best_class = iou.argmax(-1) # A
+            iou, _ = box_iou(pred_boxes[i], gt_padded[i])  # A x B
+            best_class = iou.argmax(-1)  # A
             best_class[iou[best_class] < self.iou_threshold] = C + 1
             best_class[pred_degenerate_mask[i]] = C + 1
             target_gt_classes.append(best_class)
 
-        gt_is_not_empty_mask = [1 if bi["instances"].gt_classes.shape[0] > 0 else 0 for bi in batched_inputs]
+        gt_is_not_empty_mask = [
+            1 if bi["instances"].gt_classes.shape[0] > 0 else 0 for bi in batched_inputs
+        ]
 
         target_gt_classes = torch.stack(target_gt_classes)  # NxA
 
