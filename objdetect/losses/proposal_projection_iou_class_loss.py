@@ -139,20 +139,27 @@ class ProposalProjectionIoUClassLoss(nn.Module):
 
         if self.use_giou:
             giou_distances = torch.stack(
-                [generalized_box_iou(pb, gt, True) for pb, gt in zip(prop_boxes, gt_padded)]
+                [
+                    generalized_box_iou(pb, gt, True)
+                    for pb, gt in zip(prop_boxes, gt_padded)
+                ]
             )
             giou_distances_masked = torch.where(
                 gt_masks.unsqueeze(-2).expand(
                     -1, giou_distances.shape[1], -1
                 ),  # N x B -> N x A x B
                 giou_distances,
-                torch.full_like(giou_distances, 0),
+                torch.full_like(
+                    giou_distances, 1
+                ),  # should never get activated (or it doesn't matter if it does), so we set so loss ends up as 0
             )
             giou_loss = torch.gather(
                 giou_distances_masked, 2, closest_gt_boxes.unsqueeze(-1)
             ).squeeze(
                 -1
             )  # NxA
+            if giou_loss.max() > 1000:
+                breakpoint()
             giou_loss = (1 - giou_loss) * self.giou_lambda
 
         masks_gathered = torch.gather(gt_masks, 1, closest_gt_boxes)  # N x A
@@ -208,27 +215,15 @@ class ProposalProjectionIoUClassLoss(nn.Module):
             classification_loss = F.cross_entropy(
                 flattened_logits, flattened_classes, reduction="none"
             )  # NA
-            
+
         null_mask = target_gt_classes == C
 
-        classification_loss = classification_loss.view(N, A) * self.classification_lambda
-        classification_loss[null_mask] = classification_loss[null_mask] * self.null_class_down_sample
-        # gt_is_not_empty_mask = [
-        #     1 if bi["instances"].gt_classes.shape[0] > 0 else 0 for bi in batched_inputs
-        # ]
-        # gt_is_not_empty_mask = (
-        #     torch.tensor(gt_is_not_empty_mask, dtype=bool, device=device)
-        #     .unsqueeze(-1)
-        #     .repeat(1, A)
-        # )
-
-        # classification_loss = torch.where(
-        #     gt_is_not_empty_mask,
-        #     classification_loss,
-        #     torch.full_like(classification_loss, 0),
-        # )
-        
-        # classification_loss = classification_loss * self.classification_lambda
+        classification_loss = (
+            classification_loss.view(N, A) * self.classification_lambda
+        )
+        classification_loss[null_mask] = (
+            classification_loss[null_mask] * self.null_class_down_sample
+        )
 
         for bi, class_lo, proj_lo in zip(
             batched_inputs, classification_loss, projection_loss
@@ -248,7 +243,7 @@ class ProposalProjectionIoUClassLoss(nn.Module):
                 loss_dict["projection_loss"] = loss_dict["projection_loss"] + proj_lo
             else:
                 loss_dict["projection_loss"] = proj_lo
-                
+
         if self.use_giou:
             for bi, giou_lo in zip(batched_inputs, giou_loss):
                 assert torch.isfinite(giou_lo).all()

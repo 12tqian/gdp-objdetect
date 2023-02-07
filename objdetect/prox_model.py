@@ -54,7 +54,7 @@ class ProxModel(nn.Module):
         vis_period: int = 0,
         use_nms: bool,
         clamp_preds: bool,
-        inference_log_probability: float
+        inference_log_probability: float,
     ):
         """
         Args:
@@ -135,7 +135,7 @@ class ProxModel(nn.Module):
             "pixel_std": cfg.MODEL.PIXEL_STD,
             "use_nms": cfg.MODEL.USE_NMS,
             "clamp_preds": cfg.MODEL.CLAMP_PREDS,
-            "inference_log_probability": cfg.MODEL.INFERENCE_LOG_PROBABILITY
+            "inference_log_probability": cfg.MODEL.INFERENCE_LOG_PROBABILITY,
         }
 
     @property
@@ -311,9 +311,15 @@ class ProxModel(nn.Module):
                     labels_per_image,
                     0.5,
                 )
-                mask = torch.zeros(labels_per_image.shape, dtype=torch.bool, device=labels_per_image.device)
+                mask = torch.zeros(
+                    labels_per_image.shape,
+                    dtype=torch.bool,
+                    device=labels_per_image.device,
+                )
                 mask[keep] = True
-                mask = torch.logical_and(mask, labels_per_image < self.num_classes) # make sure we don't keep background
+                mask = torch.logical_and(
+                    mask, labels_per_image < self.num_classes
+                )  # make sure we don't keep background
                 keep = mask == True
                 bi["pred_boxes"] = box_pred_per_image[keep]
                 bi["class_logits"] = bi["class_logits"][keep]
