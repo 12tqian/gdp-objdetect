@@ -70,17 +70,6 @@ def compute_iou(boxes0, boxes1):
     return (intersection_areas / (total_areas - intersection_areas)).numpy()
 
 
-class TestEvaluator(DatasetEvaluator):
-    def reset(self):
-        pass
-
-    def process(self, inputs, outputs):
-        breakpoint()
-
-    def evaluate(self):
-        pass
-
-
 # class LingxiaoEvaluator(DatasetEvaluator):
 #     def __init__(self, iou_threshold=0.5, cluster_bandwith=0.02):
 #         self.iou_threshold = iou_threshold
@@ -166,7 +155,6 @@ class TestEvaluator(DatasetEvaluator):
 #     model.eval()
 
 #     for batched_inputs in data_loader:
-#         # breakpoint()
 
 
 #     # Process witness_results, which is 2D. First average over all images.

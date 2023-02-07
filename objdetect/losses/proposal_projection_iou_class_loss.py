@@ -166,12 +166,18 @@ class ProposalProjectionIoUClassLoss(nn.Module):
         target_gt_classes = []
         for i in range(N):
             iou, _ = box_iou(pred_boxes[i], gt_padded[i], True)  # A x B
-            best_class = iou.argmax(-1)  # A
-            best_class[
-                torch.gather(iou, 1, best_class.unsqueeze(1)).squeeze()
+            best_class_idx = iou.argmax(-1)  # A, store index of gt box with best class
+            best_class_idx[
+                torch.gather(iou, 1, best_class_idx.unsqueeze(1)).squeeze()
                 < self.iou_threshold
-            ] = C
-            best_class[pred_degenerate_mask[i]] = C
+            ] = -1
+            best_class_idx[pred_degenerate_mask[i]] = -1
+            mask = best_class_idx != -1
+            best_class = torch.zeros_like(best_class_idx)
+            best_class[mask] = batched_inputs[i]["instances"].gt_classes[
+                best_class_idx[mask]
+            ]
+            best_class[mask.logical_not()] = C  # set to background class
             target_gt_classes.append(best_class)
 
         gt_is_not_empty_mask = [

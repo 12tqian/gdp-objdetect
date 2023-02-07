@@ -272,7 +272,6 @@ def inference_on_dataset(
             z[1][id]["class_labels"] = class_id_to_label
         img = wandb.Image(z[0], boxes=z[1])
         image_file_name = "/".join(batch[0]["file_name"].split("/")[-3:])
-        breakpoint()
         num_boxes.append(batch[0]["pred_boxes"].shape[0])
         log_dict[image_file_name] = img
     print(f"num_boxes {num_boxes}")

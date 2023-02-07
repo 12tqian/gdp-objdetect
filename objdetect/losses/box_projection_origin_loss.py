@@ -61,8 +61,6 @@ class BoxProjectionOriginLoss(nn.Module):
         loss = torch.where(original_gt_mask, loss, torch.zeros_like(loss))  # N x B
 
         for bi, lo in zip(batched_inputs, loss):
-            if not torch.isfinite(lo).all():
-                breakpoint()
             assert torch.isfinite(lo).all()
             loss_dict = bi["loss_dict"]
             if "origin_loss" in loss_dict:
