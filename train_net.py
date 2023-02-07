@@ -110,7 +110,7 @@ def do_test(cfg, model, accelerator: Accelerator):
     for dataset_name in cfg.DATASETS.TEST:
         data_loader = build_detection_test_loader(
             cfg, dataset_name, mapper=mapper
-        )  # TODO: "horizon"
+        )  
         # data_loader = build_detection_test_loader(cfg, dataset_name)
 
         # data_loader = accelerator.prepare(data_loader)

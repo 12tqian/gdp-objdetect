@@ -4,14 +4,14 @@ MODEL:
   NUM_HORIZON: 3
   DETECTION_LOSS:
     NAME: "ProposalProjectionIoUClassLoss"
-    # USE_GIOU: True
-    NULL_CLASS_LAMBDA: 1.0 # try 1/10 classification loss
-    # GIOU_LAMBDA: 2.0
-    CLASSIFICATION_LAMBDA: 10.0
-    PROJECTION_LAMBDA: 1.0
+    USE_GIOU: True
+    NULL_CLASS_LAMBDA: 0.2 # try 1/10 classification loss
+    GIOU_LAMBDA: 2.0  
+    CLASSIFICATION_LAMBDA: 2.0
+    PROJECTION_LAMBDA: 5.0
     IOU_THRESHOLD: 0.5
     USE_FOCAL: True
-  CLAMP_PREDS: False
+  CLAMP_PREDS: True
   TRANSPORT_LOSS:
     TRANSPORT_LAMBDA: 1.0
   TRAIN_PROPOSAL_GENERATOR:
@@ -43,4 +43,4 @@ DATASETS: # switch these
   TEST:  ("coco_2017_val_small",)
   AUGMENTATION:
     ENABLED: False # True
-OUTPUT_DIR: "./output/better-noise-giou"
+OUTPUT_DIR: "./output/better-noise-giou-test"

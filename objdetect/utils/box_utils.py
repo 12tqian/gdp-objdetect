@@ -58,15 +58,16 @@ def positive_negative(
     return ret
 
 
-def generalized_box_iou(boxes1, boxes2):
+def generalized_box_iou(boxes1, boxes2, needs_format=False):
     """
     Generalized IoU from https://giou.stanford.edu/
     The boxes should be in cxchwh format. (fixed)
     Returns a [N, M] pairwise matrix, where N = len(boxes1)
     and M = len(boxes2)
     """
-    boxes1 = box_cxcywh_to_xyxy(boxes1)
-    boxes2 = box_cxcywh_to_xyxy(boxes2)
+    if needs_format:
+        boxes1 = box_cxcywh_to_xyxy(boxes1)
+        boxes2 = box_cxcywh_to_xyxy(boxes2)
     # degenerate boxes gives inf / nan results
     # so do an early check
     assert (boxes1[:, 2:] >= boxes1[:, :2]).all()
