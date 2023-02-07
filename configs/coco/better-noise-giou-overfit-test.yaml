@@ -5,7 +5,7 @@ MODEL:
   DETECTION_LOSS:
     NAME: "ProposalProjectionIoUClassLoss"
     USE_GIOU: True
-    NULL_CLASS_LAMBDA: 0.2 # try 1/10 classification loss
+    NULL_CLASS_DOWN_SAMPLE: 0.1 
     GIOU_LAMBDA: 2.0  
     CLASSIFICATION_LAMBDA: 2.0
     PROJECTION_LAMBDA: 5.0
