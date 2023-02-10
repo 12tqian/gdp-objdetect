@@ -1,0 +1,46 @@
+_BASE_: "../base-prox.yaml"
+MODEL:
+  NULL_CLASS: True
+  NUM_HORIZON: 3
+  DETECTION_LOSS:
+    NAME: "ProposalProjectionIoUClassLoss"
+    USE_GIOU: True
+    NULL_CLASS_DOWN_SAMPLE: 0.1 
+    GIOU_LAMBDA: 0.4 # oops set this to 0.2 previously
+    CLASSIFICATION_LAMBDA: 10.0
+    PROJECTION_LAMBDA: 1.0
+    IOU_THRESHOLD: 0.5
+    USE_FOCAL: True
+  CLAMP_PREDS: True
+  TRANSPORT_LOSS:
+    TRANSPORT_LAMBDA: 1.0
+  TRAIN_PROPOSAL_GENERATOR:
+    NAME: "NoisedGroundTruth"
+    GAUSSIAN_ERROR: 0.1 # ran
+    USE_TIME: False
+    NUM_PROPOSALS: 128
+  NETWORK:
+    POSITION_DIM: 4
+    NAME: "ClassResidualNetV2"
+    HIDDEN_SIZE: 64
+  ENCODER:
+    NAME: "LocalGlobalUnitedEncoder"
+  # INFERENCE_LOG_PROBABILITY: 
+  CLAMP_PREDS: True
+SOLVER:
+  BACKBONE_MULTIPLIER: 1.0
+  BASE_LR: 0.00025
+  IMS_PER_BATCH: 12
+  WANDB:
+    ENABLED: True
+    LOG_FREQUENCY: 500
+  STEPS: (3000000, 3200000)
+  MAX_ITER: 3600000
+TEST:
+  EVAL_PERIOD: 10000
+DATASETS: # switch these
+  TRAIN: ("coco_2017_train",)
+  TEST:  ("coco_2017_val",)
+  AUGMENTATION:
+    ENABLED: True 
+OUTPUT_DIR: "./output/noise-giou-null-class-2"
