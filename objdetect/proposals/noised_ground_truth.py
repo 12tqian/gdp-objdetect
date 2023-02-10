@@ -7,6 +7,7 @@ import torch.nn as nn
 from ..registry import PROPOSAL_REGISTRY
 from ..utils.box_utils import box_cxcywh_to_xyxy
 
+
 @PROPOSAL_REGISTRY.register()
 class NoisedGroundTruth(nn.Module):
     @configurable

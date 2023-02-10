@@ -50,4 +50,3 @@ class UniformRandomBoxes(nn.Module):
             proposal_boxes = box_cxcywh_to_xyxy(proposal_boxes)
             bi["proposal_boxes"] = proposal_boxes * scale
         return batched_inputs
-

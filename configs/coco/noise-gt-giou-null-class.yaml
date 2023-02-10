@@ -6,7 +6,7 @@ MODEL:
     NAME: "ProposalProjectionIoUClassLoss"
     USE_GIOU: True
     NULL_CLASS_DOWN_SAMPLE: 0.1 
-    GIOU_LAMBDA: 0.2 
+    GIOU_LAMBDA: 0.4 # oops set this to 0.2 previously
     CLASSIFICATION_LAMBDA: 10.0
     PROJECTION_LAMBDA: 1.0
     IOU_THRESHOLD: 0.5
@@ -25,7 +25,6 @@ MODEL:
     HIDDEN_SIZE: 64
   ENCODER:
     NAME: "LocalGlobalUnitedEncoder"
-  # INFERENCE_LOG_PROBABILITY: 
   CLAMP_PREDS: True
 SOLVER:
   BACKBONE_MULTIPLIER: 1.0
