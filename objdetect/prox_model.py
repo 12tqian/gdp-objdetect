@@ -200,11 +200,11 @@ class ProxModel(nn.Module):
         return batched_inputs
 
     def add_noise(
-        self, input: Dict[str, torch.Tensor | Instances]
+        self, input_tensor: torch.Tensor
     ):
         noised_proposal_boxes = (
-            input["proposal_boxes"] * (1 - self.inference_gaussian_error) ** 0.5
-            + torch.randn(input["proposal_boxes"].shape)
+            input_tensor * (1 - self.inference_gaussian_error) ** 0.5
+            + torch.randn_like(input_tensor)
             * self.inference_gaussian_error**0.5
         )
 

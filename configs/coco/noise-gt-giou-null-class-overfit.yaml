@@ -20,8 +20,8 @@ MODEL:
     USE_TIME: False
     NUM_PROPOSALS: 128
   INFERENCE_PROPOSAL_GENERATOR:
-    # NAME: "InferenceProposalBoxes"
-    NUM_PROPOSALS: 4096
+    NAME: "InferenceProposalBoxes"
+    NUM_PROPOSALS: 1024g
   NETWORK:
     POSITION_DIM: 4
     NAME: "ClassResidualNetV2"
@@ -30,6 +30,9 @@ MODEL:
     NAME: "LocalGlobalUnitedEncoder"
   INFERENCE_LOG_PROBABILITY: 1.0
   CLAMP_PREDS: True
+  INFERENCE:
+    INFERENCE_GAUSSIAN_ERROR: 0.0001
+    USE_INFERENCE_NOISE: True
 SOLVER:
   BACKBONE_MULTIPLIER: 0.1
   BASE_LR: 0.00025
@@ -46,4 +49,4 @@ DATASETS: # switch these
   TEST:  ("coco_2017_val_small",)
   AUGMENTATION:
     ENABLED: False # True
-OUTPUT_DIR: "./output/__archive__/noise-gt-giou-nll-class-overfit"
+OUTPUT_DIR: "./output/__archive__/noise-gt-giou-null-class-overfit"
