@@ -42,6 +42,8 @@ class ProxModel(nn.Module):
         train_num_proposals: int,
         inference_proposal_generator: Optional[nn.Module],
         inference_num_proposals: int,
+        inference_gaussian_error: int,
+        use_inference_noise: bool,
         num_classes: int,
         encoder: Backbone,
         network: nn.Module,
@@ -70,6 +72,8 @@ class ProxModel(nn.Module):
         self.train_num_proposals = train_num_proposals
         self.inference_proposal_generator = inference_proposal_generator
         self.inference_num_proposals = inference_num_proposals
+        self.inference_gaussian_error = inference_gaussian_error
+        self.use_inference_noise = use_inference_noise
         self.num_classes = num_classes
         self.encoder = encoder
         self.network = network
@@ -124,6 +128,8 @@ class ProxModel(nn.Module):
             "train_num_proposals": cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.NUM_PROPOSALS,
             "inference_proposal_generator": inference_proposal_generator,
             "inference_num_proposals": cfg.MODEL.INFERENCE_PROPOSAL_GENERATOR.NUM_PROPOSALS,
+            "inference_gaussian_error": cfg.MODEL.INFERENCE.INFERENCE_GAUSSIAN_ERROR,
+            "use_inference_noise": cfg.MODEL.INFERENCE.USE_INFERENCE_NOISE,
             "num_classes": cfg.DATASETS.NUM_CLASSES,
             "encoder": encoder,
             "network": network,
@@ -192,6 +198,17 @@ class ProxModel(nn.Module):
         for bi in batched_inputs:
             bi["pred_boxes"] = box_clamp_01(bi["pred_boxes"])
         return batched_inputs
+
+    def add_noise(
+        self, input: Dict[str, torch.Tensor | Instances]
+    ):
+        noised_proposal_boxes = (
+            input["proposal_boxes"] * (1 - self.inference_gaussian_error) ** 0.5
+            + torch.randn(input["proposal_boxes"].shape)
+            * self.inference_gaussian_error**0.5
+        )
+
+        return noised_proposal_boxes
 
     def forward(self, batched_inputs: List[Dict[str, torch.Tensor | Instances]]):
         """
@@ -297,6 +314,28 @@ class ProxModel(nn.Module):
             #     self.detection_loss(batched_inputs)
             for input in batched_inputs:
                 input["proposal_boxes"] = input["pred_boxes"]
+
+        if self.use_inference_noise:
+            for input in batched_inputs:
+                input["proposal_boxes"] = self.add_noise(input["proposal_boxes"])
+
+            for _ in range(repetitions):
+                batched_inputs = self.normalize_boxes(batched_inputs)
+
+                batched_inputs = self.encoder(batched_inputs)
+                batched_inputs = self.network(batched_inputs)
+
+                if self.clamp_preds:
+                    batched_inputs = self.clamp_predictions(batched_inputs)
+
+                batched_inputs = self.denormalize_boxes(batched_inputs)
+
+                # if _ == 0:
+                #     batched_inputs[0]["inference"] = 0
+                #     self.detection_loss(batched_inputs)
+                for input in batched_inputs:
+                    input["proposal_boxes"] = input["pred_boxes"]
+
 
         if self.use_nms:
             for bi in batched_inputs:
