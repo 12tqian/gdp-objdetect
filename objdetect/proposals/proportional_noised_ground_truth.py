@@ -43,7 +43,15 @@ class ProportionalNoisedGroundTruth(nn.Module):
 
                 sampled_gt_boxes = gt_boxes[sampled_indices] / scale  # Bx4
 
-                wh_scale = torch.stack([sampled_gt_boxes[:, 0] - sampled_gt_boxes[:, 2], sampled_gt_boxes[:, 1] - sampled_gt_boxes[:, 3], sampled_gt_boxes[:, 0] - sampled_gt_boxes[:, 2], sampled_gt_boxes[:, 1] - sampled_gt_boxes[:, 3]], dim=1)
+                wh_scale = torch.stack(
+                    [
+                        sampled_gt_boxes[:, 0] - sampled_gt_boxes[:, 2],
+                        sampled_gt_boxes[:, 1] - sampled_gt_boxes[:, 3],
+                        sampled_gt_boxes[:, 0] - sampled_gt_boxes[:, 2],
+                        sampled_gt_boxes[:, 1] - sampled_gt_boxes[:, 3],
+                    ],
+                    dim=1,
+                )
 
                 if self.use_t:
                     t = torch.randint(1000, size=(num_proposal_boxes,))  # B,
@@ -54,7 +62,8 @@ class ProportionalNoisedGroundTruth(nn.Module):
 
                     corrupted_sampled_ground_truth_boxes = (
                         sampled_gt_boxes * (alpha_cumprod) ** 0.5
-                        + torch.randn((num_proposal_boxes, 4)) * wh_scale  # the noise
+                        + torch.randn((num_proposal_boxes, 4))
+                        * wh_scale  # the noise
                         * (1 - alpha_cumprod) ** 0.5
                     )
                     prior = scale * corrupted_sampled_ground_truth_boxes
@@ -62,7 +71,8 @@ class ProportionalNoisedGroundTruth(nn.Module):
                 else:
                     corrupted_sampled_ground_truth_boxes = (
                         sampled_gt_boxes * (1 - self.gaussian_error) ** 0.5
-                        + torch.randn((num_proposal_boxes, 4)) * wh_scale
+                        + torch.randn((num_proposal_boxes, 4))
+                        * wh_scale
                         * self.gaussian_error**0.5
                     )
                     prior = scale * corrupted_sampled_ground_truth_boxes

@@ -199,13 +199,10 @@ class ProxModel(nn.Module):
             bi["pred_boxes"] = box_clamp_01(bi["pred_boxes"])
         return batched_inputs
 
-    def add_noise(
-        self, input_tensor: torch.Tensor
-    ):
+    def add_noise(self, input_tensor: torch.Tensor):
         noised_proposal_boxes = (
             input_tensor * (1 - self.inference_gaussian_error) ** 0.5
-            + torch.randn_like(input_tensor)
-            * self.inference_gaussian_error**0.5
+            + torch.randn_like(input_tensor) * self.inference_gaussian_error**0.5
         )
 
         return noised_proposal_boxes
@@ -335,7 +332,6 @@ class ProxModel(nn.Module):
                 #     self.detection_loss(batched_inputs)
                 for input in batched_inputs:
                     input["proposal_boxes"] = input["pred_boxes"]
-
 
         if self.use_nms:
             for bi in batched_inputs:

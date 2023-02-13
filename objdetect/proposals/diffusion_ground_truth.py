@@ -9,6 +9,7 @@ from ..utils.box_utils import box_cxcywh_to_xyxy
 import math
 import torch.functional as F
 
+
 def cosine_beta_schedule(timesteps, s=0.008):
     """
     cosine schedule
@@ -22,16 +23,19 @@ def cosine_beta_schedule(timesteps, s=0.008):
 
     return torch.clip(betas, 0, 0.999)
 
+
 def linear_beta_schedule(timesteps):
     beta_start = 0.0001
     beta_end = 0.02
     return torch.linspace(beta_start, beta_end, timesteps)
+
 
 def extract(a, t, x_shape):
     """extract the appropriate  t  index for a batch of indices"""
     batch_size = t.shape[0]
     out = a.gather(-1, t)
     return out.reshape(batch_size, *((1,) * (len(x_shape) - 1)))
+
 
 @PROPOSAL_REGISTRY.register()
 class DiffusionGroundTruth(nn.Module):
@@ -41,14 +45,17 @@ class DiffusionGroundTruth(nn.Module):
         self.gaussian_error = gaussian_error  # default should be 0.1??
         self.timesteps = 1000
         betas = cosine_beta_schedule(self.timesteps)
-        alphas = 1. - betas
+        alphas = 1.0 - betas
         alphas_cumprod = torch.cumprod(alphas, dim=0)
-        self.register_buffer('alphas_cumprod', alphas_cumprod)
-        self.register_buffer('sqrt_one_minus_alphas_cumprod', torch.sqrt(1. - alphas_cumprod))
-        self.register_buffer('log_one_minus_alphas_cumprod', torch.log(1. - alphas_cumprod))
+        self.register_buffer("alphas_cumprod", alphas_cumprod)
+        self.register_buffer(
+            "sqrt_one_minus_alphas_cumprod", torch.sqrt(1.0 - alphas_cumprod)
+        )
+        self.register_buffer(
+            "log_one_minus_alphas_cumprod", torch.log(1.0 - alphas_cumprod)
+        )
 
         self.use_t = use_t
-
 
     @classmethod
     def from_config(cls, cfg, is_inf_proposal: bool):
@@ -57,13 +64,15 @@ class DiffusionGroundTruth(nn.Module):
             "gaussian_error": cfg.MODEL.TRAIN_PROPOSAL_GENERATOR.GAUSSIAN_ERROR,  # TODO: Maybe make these function args and put the if train/inference logic in the same place as calculating num_proposal_boxes
             "is_inf_proposal": is_inf_proposal,
         }
-    
+
     def q_sample(self, x_start, t, noise=None):
         if noise is None:
             noise = torch.randn_like(x_start)
 
         sqrt_alphas_cumprod_t = extract(self.sqrt_alphas_cumprod, t, x_start.shape)
-        sqrt_one_minus_alphas_cumprod_t = extract(self.sqrt_one_minus_alphas_cumprod, t, x_start.shape)
+        sqrt_one_minus_alphas_cumprod_t = extract(
+            self.sqrt_one_minus_alphas_cumprod, t, x_start.shape
+        )
 
         return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
 
@@ -86,12 +95,14 @@ class DiffusionGroundTruth(nn.Module):
                 sampled_gt_boxes = gt_boxes[sampled_indices] / scale  # Bx4
 
                 t = torch.randint(self.timesteps, size=(num_proposal_boxes,))  # B,
-                corrupted_sampled_ground_truth_boxes = self.q_sample(sampled_gt_boxes, t)
+                corrupted_sampled_ground_truth_boxes = self.q_sample(
+                    sampled_gt_boxes, t
+                )
 
                 prior = scale * corrupted_sampled_ground_truth_boxes
                 prior_t = t
 
-            else: # sample from multivariate normal
+            else:  # sample from multivariate normal
                 prior_t = torch.full((num_proposal_boxes,), 1000)
                 corrupted_sampled_ground_truth_boxes = scale * torch.randn(
                     [num_proposal_boxes, 4]
