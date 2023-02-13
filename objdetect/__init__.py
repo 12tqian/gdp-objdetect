@@ -6,7 +6,7 @@ from .encoders.local_encoder import LocalEncoder
 from .encoders.local_global_united_encoder import LocalGlobalUnitedEncoder
 from .encoders.resnet_pe_flatten import ResnetEncoderPEFlatten
 from .prox_model import ProxModel
-from .proposals import UniformRandomBoxes, NoisedGroundTruth, InferenceProposalBoxes, DiffusionGroundTruth
+from .proposals import UniformRandomBoxes, NoisedGroundTruth, InferenceProposalBoxes, ProportionalNoisedGroundTruth
 from .losses import (
     BoxDistanceLoss,
     BoxProjectionLoss,
