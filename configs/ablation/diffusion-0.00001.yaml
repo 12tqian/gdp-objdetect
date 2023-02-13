@@ -6,9 +6,9 @@ MODEL:
     NAME: "ProposalProjectionIoUClassLoss"
     USE_GIOU: True
     NULL_CLASS_DOWN_SAMPLE: 0.1 
-    GIOU_LAMBDA: 2.0  
-    CLASSIFICATION_LAMBDA: 2.0
-    PROJECTION_LAMBDA: 5.0
+    GIOU_LAMBDA: 0.4 
+    CLASSIFICATION_LAMBDA: 10.0
+    PROJECTION_LAMBDA: 1.0
     IOU_THRESHOLD: 0.5
     USE_FOCAL: True
   CLAMP_PREDS: True
@@ -16,26 +16,18 @@ MODEL:
     TRANSPORT_LAMBDA: 1.0
   TRAIN_PROPOSAL_GENERATOR:
     NAME: "NoisedGroundTruth"
-    GAUSSIAN_ERROR: 0.0
-    USE_TIME: False
+    GAUSSIAN_ERROR: 0.00001
+    USE_TIME: True
     NUM_PROPOSALS: 128
-  INFERENCE_PROPOSAL_GENERATOR:
-    NAME: "InferenceProposalBoxes"
-    # NAME: "NoisedGroundTruth"
-    NUM_PROPOSALS: 1024
   NETWORK:
     POSITION_DIM: 4
     NAME: "ClassResidualNetV2"
     HIDDEN_SIZE: 64
   ENCODER:
     NAME: "LocalGlobalUnitedEncoder"
-  INFERENCE_LOG_PROBABILITY: 1.0
   CLAMP_PREDS: True
-  INFERENCE:
-    INFERENCE_GAUSSIAN_ERROR: 0.0001
-    USE_INFERENCE_NOISE: True
 SOLVER:
-  BACKBONE_MULTIPLIER: 0.1
+  BACKBONE_MULTIPLIER: 1.0
   BASE_LR: 0.00025
   IMS_PER_BATCH: 12
   WANDB:
@@ -44,10 +36,10 @@ SOLVER:
   STEPS: (3000000, 3200000)
   MAX_ITER: 3600000
 TEST:
-  EVAL_PERIOD: 1000
+  EVAL_PERIOD: 10000
 DATASETS: # switch these
-  TRAIN: ("coco_2017_val_small",)
-  TEST:  ("coco_2017_val_small",)
+  TRAIN: ("coco_2017_train",)
+  TEST:  ("coco_2017_val",)
   AUGMENTATION:
-    ENABLED: False # True
-OUTPUT_DIR: "./output/__archive__/noise-gt-giou-null-class-overfit"
+    ENABLED: True 
+OUTPUT_DIR: "./output/diffusion-0.00001"
