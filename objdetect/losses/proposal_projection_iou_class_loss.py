@@ -118,6 +118,14 @@ class ProposalProjectionIoUClassLoss(nn.Module):
             -1
         )  # both N x A
 
+        # for i in range(N):
+        #     closest_gt_counts = np.bincount(closest_gt_boxes[i].cpu().numpy())
+        #     closest_gt_counts.sort()
+        #     closest_gt_counts = closest_gt_counts / closest_gt_counts.sum()
+        #     # print(batched_inputs[i]["file_name"].split("/")[-1], closest_gt_counts.std(), closest_gt_counts, "Out of: ", batched_inputs[i]["instances"].gt_boxes.tensor.shape[0])
+        #     print(closest_gt_counts.min(), closest_gt_counts.std(), "Out of: ", batched_inputs[i]["instances"].gt_boxes.tensor.shape[0])
+
+
         pred_box_distances = self.box_distances(
             pred_boxes, gt_padded
         )  # N x A x B (A is # pred_boxes, B is max # gt_boxes)
@@ -228,28 +236,38 @@ class ProposalProjectionIoUClassLoss(nn.Module):
         for bi, class_lo, proj_lo in zip(
             batched_inputs, classification_loss, projection_loss
         ):
+            loss_dict = bi["loss_dict"]
+            if bi["instances"].gt_boxes.tensor.shape[0] != 0:
+                if "classification_loss" in loss_dict:
+                    loss_dict["classification_loss"] = (
+                        loss_dict["classification_loss"] + class_lo
+                    )
+
+                else:
+                    loss_dict["classification_loss"] = class_lo
+
+                if "projection_loss" in loss_dict:
+                    loss_dict["projection_loss"] = loss_dict["projection_loss"] + proj_lo
+                else:
+                    loss_dict["projection_loss"] = proj_lo
+                
+            if bi["instances"].gt_boxes.tensor.shape[0] != 0:
+                if "count" in bi:
+                    bi["count"] += 1
+                else:
+                    bi["count"] = 1
+                continue
+            if not torch.isfinite(class_lo).all():
+                breakpoint()
             assert torch.isfinite(class_lo).all()
             assert torch.isfinite(proj_lo).all()
-            loss_dict = bi["loss_dict"]
-            if "classification_loss" in loss_dict:
-                loss_dict["classification_loss"] = (
-                    loss_dict["classification_loss"] + class_lo
-                )
-
-            else:
-                loss_dict["classification_loss"] = class_lo
-
-            if "projection_loss" in loss_dict:
-                loss_dict["projection_loss"] = loss_dict["projection_loss"] + proj_lo
-            else:
-                loss_dict["projection_loss"] = proj_lo
-
         if self.use_giou:
             for bi, giou_lo in zip(batched_inputs, giou_loss):
                 assert torch.isfinite(giou_lo).all()
-                if "giou_loss" in loss_dict:
-                    loss_dict["giou_loss"] = loss_dict["giou_loss"] + giou_lo
-                else:
-                    loss_dict["giou_loss"] = giou_lo
+                if bi["instances"].gt_boxes.tensor.shape[0] != 0:
+                    if "giou_loss" in loss_dict:
+                        loss_dict["giou_loss"] = loss_dict["giou_loss"] + giou_lo
+                    else:
+                        loss_dict["giou_loss"] = giou_lo
 
         return batched_inputs

@@ -105,6 +105,6 @@ INPUT:
 TEST:
   EVAL_PERIOD: 10000
 DATALOADER:
-  FILTER_EMPTY_ANNOTATIONS: False
+  FILTER_EMPTY_ANNOTATIONS: True # i should be filtering this 
   NUM_WORKERS: 4
 OUTPUT_DIR: "./output/base/"

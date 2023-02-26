@@ -42,10 +42,13 @@ class BoxDistanceLoss(nn.Module):
         distances = distances * self.transport_lambda
 
         for bi, d in zip(batched_inputs, distances):
-            assert torch.isfinite(d).all()
             loss_dict = bi["loss_dict"]
-            if "transport_loss" in loss_dict:
-                loss_dict["transport_loss"] = loss_dict["transport_loss"] + d
-            else:
-                loss_dict["transport_loss"] = d
+            if bi["instances"].gt_boxes.tensor.shape[0] != 0:
+                if "transport_loss" in loss_dict:
+                    loss_dict["transport_loss"] = loss_dict["transport_loss"] + d
+                else:
+                    loss_dict["transport_loss"] = d
+            if not torch.isfinite(d).all():
+                breakpoint()
+            assert torch.isfinite(d).all()
         return batched_inputs

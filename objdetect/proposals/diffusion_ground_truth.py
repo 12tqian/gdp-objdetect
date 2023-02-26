@@ -26,27 +26,30 @@ def cosine_beta_schedule(timesteps, s=0.008):
 
 def linear_beta_schedule(timesteps):
     beta_start = 0.0001
-    beta_end = 0.02
+    beta_end = 0.02 # TODO: change this to 0.02
+    beta_start = 0.00001
+    beta_end = 0.0001
     return torch.linspace(beta_start, beta_end, timesteps)
 
 
 def extract(a, t, x_shape):
     """extract the appropriate  t  index for a batch of indices"""
     batch_size = t.shape[0]
-    out = a.gather(-1, t)
+    out = a.to(t.device).gather(-1, t)
     return out.reshape(batch_size, *((1,) * (len(x_shape) - 1)))
 
 
 @PROPOSAL_REGISTRY.register()
 class DiffusionGroundTruth(nn.Module):
     @configurable
-    def __init__(self, *, gaussian_error: float, use_t: bool, is_inf_proposal: bool):
+    def __init__(self, *, gaussian_error: float, is_inf_proposal: bool):
         super().__init__()
         self.gaussian_error = gaussian_error  # default should be 0.1??
         self.timesteps = 1000
-        betas = cosine_beta_schedule(self.timesteps)
+        betas = linear_beta_schedule(self.timesteps)
         alphas = 1.0 - betas
         alphas_cumprod = torch.cumprod(alphas, dim=0)
+        self.register_buffer('sqrt_alphas_cumprod', torch.sqrt(alphas_cumprod))
         self.register_buffer("alphas_cumprod", alphas_cumprod)
         self.register_buffer(
             "sqrt_one_minus_alphas_cumprod", torch.sqrt(1.0 - alphas_cumprod)
@@ -55,7 +58,6 @@ class DiffusionGroundTruth(nn.Module):
             "log_one_minus_alphas_cumprod", torch.log(1.0 - alphas_cumprod)
         )
 
-        self.use_t = use_t
 
     @classmethod
     def from_config(cls, cfg, is_inf_proposal: bool):
@@ -68,11 +70,12 @@ class DiffusionGroundTruth(nn.Module):
     def q_sample(self, x_start, t, noise=None):
         if noise is None:
             noise = torch.randn_like(x_start)
-
         sqrt_alphas_cumprod_t = extract(self.sqrt_alphas_cumprod, t, x_start.shape)
         sqrt_one_minus_alphas_cumprod_t = extract(
             self.sqrt_one_minus_alphas_cumprod, t, x_start.shape
         )
+
+        # breakpoint()
 
         return sqrt_alphas_cumprod_t * x_start + sqrt_one_minus_alphas_cumprod_t * noise
 
@@ -92,7 +95,7 @@ class DiffusionGroundTruth(nn.Module):
                 )  # B,
                 bi["original_gt"] = sampled_indices
 
-                sampled_gt_boxes = gt_boxes[sampled_indices] / scale  # Bx4
+                sampled_gt_boxes = gt_boxes[sampled_indices] / scale  # Bx4, need to convert to cpu 
 
                 t = torch.randint(self.timesteps, size=(num_proposal_boxes,))  # B,
                 corrupted_sampled_ground_truth_boxes = self.q_sample(

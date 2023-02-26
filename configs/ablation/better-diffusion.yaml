@@ -1,11 +1,11 @@
 _BASE_: "../base-prox.yaml"
 MODEL:
-  NULL_CLASS: True
-  NUM_HORIZON: 3
+  NULL_CLASS: True 
+  NUM_HORIZON: 3 # change
   DETECTION_LOSS:
     NAME: "ProposalProjectionIoUClassLoss"
     USE_GIOU: True
-    NULL_CLASS_DOWN_SAMPLE: 0.5
+    NULL_CLASS_DOWN_SAMPLE: 0.5 
     GIOU_LAMBDA: 0.4 
     CLASSIFICATION_LAMBDA: 10.0
     PROJECTION_LAMBDA: 1.0
@@ -14,9 +14,11 @@ MODEL:
   CLAMP_PREDS: True
   TRANSPORT_LOSS:
     TRANSPORT_LAMBDA: 1.0
+  # INFERENCE_PROPOSAL_GENERATOR:
+  #   NAME: "UniformRandomBoxes"
+  #   NUM_PROPOSALS: 128 # change
   TRAIN_PROPOSAL_GENERATOR:
-    NAME: "NoisedGroundTruth"
-    GAUSSIAN_ERROR: 0.00001
+    NAME: "DiffusionGroundTruth"
     USE_TIME: True
     NUM_PROPOSALS: 128
   NETWORK:
@@ -29,7 +31,7 @@ MODEL:
 SOLVER:
   BACKBONE_MULTIPLIER: 1.0
   BASE_LR: 0.00025
-  IMS_PER_BATCH: 12
+  IMS_PER_BATCH: 12 # change 
   WANDB:
     ENABLED: True
     LOG_FREQUENCY: 500
@@ -42,4 +44,4 @@ DATASETS: # switch these
   TEST:  ("coco_2017_val",)
   AUGMENTATION:
     ENABLED: True 
-OUTPUT_DIR: "./output/diffusion-0.00001"
+OUTPUT_DIR: "./output/better-diffusion"

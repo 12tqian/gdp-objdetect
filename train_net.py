@@ -269,6 +269,8 @@ def do_train(
 
             with accelerator.accumulate(model):
                 loss_dict = {}
+                total_count = 0
+                use_total_count = False
                 for h in range(cfg.MODEL.NUM_HORIZON):
                     batched_inputs = model(batched_inputs)
 
@@ -280,17 +282,24 @@ def do_train(
                                 loss_dict[k] = loss_dict[k] + v
                             else:
                                 loss_dict[k] = torch.zeros(1, device=model.device)
+                        if "count" in bi:
+                            use_total_count = True
+                            total_count += bi["count"]
 
                     for bi in batched_inputs:
                         bi["proposal_boxes"] = bi["pred_boxes"].detach()
 
                 total_loss = torch.zeros(1, device=model.device)
                 for k in loss_dict:
-                    loss_dict[k] = (
-                        loss_dict[k].mean()
-                        / len(batched_inputs)
-                        / cfg.MODEL.NUM_HORIZON
-                    )
+                    if use_total_count:
+                        if total_count > 0: 
+                            loss_dict[k] = loss_dict[k].sum() / total_count / cfg.MODEL.NUM_HORIZON
+                    else: 
+                        loss_dict[k] = (
+                            loss_dict[k].mean()
+                            / len(batched_inputs)
+                            / cfg.MODEL.NUM_HORIZON
+                        )
                     total_loss = total_loss + loss_dict[k]
 
                 assert torch.isfinite(total_loss).all()
@@ -312,7 +321,8 @@ def do_train(
                     batched_inputs,
                     log_dict,
                 )
-
+                # with torch.autograd.detect_anomaly():
+                    # debug anomaly loss
                 accelerator.backward(total_loss)
                 optimizer.step()
                 if not accelerator.optimizer_step_was_skipped:
