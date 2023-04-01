@@ -35,6 +35,8 @@ SOLVER:
     LOG_FREQUENCY: 500
   STEPS: (3000000, 3200000)
   MAX_ITER: 3600000
+  CHECKPOINT_PERIOD: 3000
+  ADAM_EPSILON: 0.000001
 TEST:
   EVAL_PERIOD: 10000
 DATASETS: # switch these
@@ -42,4 +44,4 @@ DATASETS: # switch these
   TEST:  ("coco_2017_val",)
   AUGMENTATION:
     ENABLED: True 
-OUTPUT_DIR: "./output/diffusion-0.0001"
+OUTPUT_DIR: "./output/diffusion-0.0001-debug"

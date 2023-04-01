@@ -177,7 +177,8 @@ def build_optimizer(cfg, model):
         if "backbone" in key:
             lr = lr * cfg.SOLVER.BACKBONE_MULTIPLIER
         params += [{"params": [value], "lr": lr, "weight_decay": weight_decay}]
-
+    
+    
     def maybe_add_full_model_gradient_clipping(optim):  # optim: the optimizer class
         # detectron2 doesn't have full model gradient clipping now
         clip_norm_val = cfg.SOLVER.CLIP_GRADIENTS.CLIP_VALUE
@@ -202,7 +203,7 @@ def build_optimizer(cfg, model):
         )
     elif optimizer_type == "AdamW":
         optimizer = maybe_add_full_model_gradient_clipping(torch.optim.AdamW)(
-            params, cfg.SOLVER.BASE_LR
+            params, cfg.SOLVER.BASE_LR, eps=cfg.SOLVER.ADAM_EPSILON
         )
     else:
         raise NotImplementedError(f"no optimizer type {optimizer_type}")
@@ -378,5 +379,6 @@ def main(args):
 
 if __name__ == "__main__":
     set_seed(42)
+    # torch.use_deterministic_algorithms(True)
     args = default_argument_parser().parse_args()
     main(args)

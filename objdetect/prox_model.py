@@ -374,6 +374,22 @@ class ProxModel(nn.Module):
                 to_log = wandb.Image(img, boxes=boxes)
                 log_dict["inference/" + image_file_name] = to_log
             wandb.log(log_dict)
+        
+        # for bi in batched_inputs:
+        #     if not torch.isfinite(bi["proposal_boxes"]).all():
+        #         breakpoint()
+        #     if not torch.isfinite(bi["pred_boxes"]).all():
+        #         breakpoint()
+        #     if not torch.isfinite(bi["fpn_features_dict"]["p2"]).all():
+        #         breakpoint()
+        #     if not torch.isfinite(bi["fpn_features_dict"]["p3"]).all():
+        #         breakpoint()
+        #     if not torch.isfinite(bi["fpn_features_dict"]["p4"]).all():
+        #         breakpoint()
+        #     if not torch.isfinite(bi["fpn_features_dict"]["p5"]).all():
+        #         breakpoint()
+        #     if not torch.isfinite(bi["global_features"]).all():
+        #         breakpoint()
 
         if do_postprocess:
             assert (
@@ -396,6 +412,8 @@ class ProxModel(nn.Module):
             width = bi.get("width", image_size[1])
 
             result = Instances(image_size)
+            mask = bi["pred_boxes"].isfinite().all(-1)
+            bi["pred_boxes"] = torch.where(mask.unsqueeze(-1).expand(-1, 4), bi["pred_boxes"], torch.zeros_like(bi["pred_boxes"]))
             result.pred_boxes = Boxes(bi["pred_boxes"])
             if "class_logits" in bi:  # TODO:
                 result.scores = torch.max(
@@ -403,6 +421,7 @@ class ProxModel(nn.Module):
                 )[
                     0
                 ]  # all shape BxC TODO: This seems like what diffusiondet does but make sure
+                result.scores = torch.where(mask, result.scores, torch.zeros_like(result.scores))
                 result.pred_classes = torch.argmax(
                     bi["class_logits"], dim=-1
                 )  # all shape B
