@@ -325,6 +325,7 @@ def do_train(
                 # with torch.autograd.detect_anomaly():
                     # debug anomaly loss
                 accelerator.backward(total_loss)
+
                 optimizer.step()
                 if not accelerator.optimizer_step_was_skipped:
                     scheduler.step()

@@ -77,6 +77,7 @@ class ProxModelDatasetMapper:
         )
 
         self.img_format = cfg.INPUT.FORMAT
+        self.min_iou = cfg.DATASETS.AUGMENTATION.MIN_IOU
         self.is_train = is_train
 
     def __call__(self, dataset_dict):
@@ -123,11 +124,36 @@ class ProxModelDatasetMapper:
                 anno.pop("keypoints", None)
 
             # USER: Implement additional transformations if you have other types of data
-            annos = [
-                utils.transform_instance_annotations(obj, transforms, image_shape)
-                for obj in dataset_dict.pop("annotations")
-                if obj.get("iscrowd", 0) == 0
-            ]
+            # annos = [
+            #     utils.transform_instance_annotations(obj, transforms, image_shape)
+            #     for obj in dataset_dict.pop("annotations")
+            #     if obj.get("iscrowd", 0) == 0
+            # ]
+            annos = []
+            for obj in dataset_dict.pop("annotations"):
+                if obj.get("iscrowd", 0) != 0:
+                    continue
+
+                # this stuff needs to be before because utils transform will change the bbox
+                from detectron2.structures import BoxMode
+                bbox = BoxMode.convert(obj["bbox"], obj["bbox_mode"], BoxMode.XYXY_ABS)
+                # clip transformed bbox to image size
+                bbox = transforms.apply_box(np.array([bbox]))[0]
+
+                new_anno = utils.transform_instance_annotations(obj, transforms, image_shape)
+
+
+                # iou checking
+                from detectron2.structures import pairwise_iou, Boxes
+
+                # boxes, XYXY form and absolute
+                boxes1 = Boxes(torch.tensor(bbox).unsqueeze(0))
+                boxes2 = Boxes(torch.tensor(new_anno["bbox"]).unsqueeze(0))
+                iou = pairwise_iou(boxes1, boxes2)[0][0]
+
+                if iou > self.min_iou:
+                    annos.append(new_anno)
+
             instances = utils.annotations_to_instances(annos, image_shape)
             dataset_dict["instances"] = utils.filter_empty_instances(instances)
         return dataset_dict

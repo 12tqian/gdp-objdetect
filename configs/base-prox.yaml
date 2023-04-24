@@ -93,6 +93,7 @@ DATASETS:
   TRAIN_COUNT: 100
   AUGMENTATION:
     ENABLED: True
+    MIN_IOU: 0.5
   TRAIN: ("synthetic_train_10",)
   TEST: ("synthetic_val_10",)
   NUM_CLASSES: 80
