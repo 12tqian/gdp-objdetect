@@ -294,7 +294,7 @@ def do_train(
                 for k in loss_dict:
                     if use_total_count:
                         if total_count > 0: 
-                            loss_dict[k] = loss_dict[k].sum() / total_count / cfg.MODEL.NUM_HORIZON
+                            loss_dict[k] = loss_dict[k].mean() / total_count / cfg.MODEL.NUM_HORIZON
                     else: 
                         loss_dict[k] = (
                             loss_dict[k].mean()
