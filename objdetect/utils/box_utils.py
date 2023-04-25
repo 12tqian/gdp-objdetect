@@ -1,6 +1,7 @@
 import torch
 from torchvision.ops.boxes import box_area
 
+divide_eps = 1e-6
 
 def box_cxcywh_to_xyxy(x: torch.Tensor):
     x_c, y_c, w, h = x.unbind(-1)
@@ -41,7 +42,7 @@ def box_iou(boxes1, boxes2, needs_format=False):
 
     union = area1[:, None] + area2 - inter
 
-    iou = inter / union
+    iou = inter / (union + divide_eps)
     return iou, union
 
 
@@ -80,4 +81,4 @@ def generalized_box_iou(boxes1, boxes2, needs_format=False):
     wh = (rb - lt).clamp(min=0)  # [N,M,2]
     area = wh[:, :, 0] * wh[:, :, 1]
 
-    return iou - (area - union) / area
+    return iou - (area - union) / (area + divide_eps)

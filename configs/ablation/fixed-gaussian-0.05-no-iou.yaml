@@ -42,5 +42,6 @@ DATASETS: # switch these
   TRAIN: ("coco_2017_train",)
   TEST:  ("coco_2017_val",)
   AUGMENTATION:
+    MIN_IOU: 0.0
     ENABLED: True 
 OUTPUT_DIR: "./output/fixed-gaussian-0.05"
