@@ -276,6 +276,7 @@ def do_train(
                     batched_inputs = model(batched_inputs)
 
                     objdetect_logger.during_iteration(batched_inputs)
+                    total_count = 0
 
                     for bi in batched_inputs:
                         for k, v in bi["loss_dict"].items():
@@ -294,7 +295,7 @@ def do_train(
                 for k in loss_dict:
                     if use_total_count:
                         if total_count > 0: 
-                            loss_dict[k] = loss_dict[k].mean() / total_count / cfg.MODEL.NUM_HORIZON
+                            loss_dict[k] = loss_dict[k].mean() / total_count 
                     else: 
                         loss_dict[k] = (
                             loss_dict[k].mean()
@@ -312,7 +313,7 @@ def do_train(
                         "lr": optimizer.param_groups[0]["lr"],
                     }
                 )
-                if step % cfg.TEST.EVAL_PERIOD == 0 and accelerator.is_main_process:
+                if step % cfg.TEST.EVAL_PERIOD == 0 and accelerator.is_main_process and step > 0:
                     tqdm.write("Validating model:")
                     results_i = do_test(cfg, model, accelerator)
                     log_dict.update(results_i)
